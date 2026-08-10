@@ -51,3 +51,6 @@ rsconnect/
 .DS_Store
 /report
 /data
+
+# machine-specific local paths — not portable across machines
+code/config.R
