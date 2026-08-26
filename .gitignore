@@ -51,9 +51,10 @@ rsconnect/
 .DS_Store
 /data
 
-# report sources are tracked; LaTeX build artifacts and figures are not
+# report sources and the built PDF are tracked; LaTeX build artifacts are not
 /report/*
 !/report/*.tex
+!/report/*.pdf
 
 # machine-specific local paths — not portable across machines
 code/config.R
