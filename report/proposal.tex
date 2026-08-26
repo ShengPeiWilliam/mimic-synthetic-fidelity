@@ -1,0 +1,97 @@
+\documentclass[11pt]{article}
+\usepackage[margin=0.75in]{geometry}
+\usepackage{hyperref}
+\usepackage{amsmath}
+\usepackage{setspace}
+\usepackage{graphicx}
+\usepackage{xcolor}
+
+\hypersetup{colorlinks=true, urlcolor=blue!60!black, citecolor=blue!60!black}
+\setstretch{1.1}
+
+\title{\vspace{-1.5cm}\normalsize\textbf{Research Proposal:\\
+Rare-Stratum Fidelity in Privacy-Preserving\\
+Synthetic Clinical Data}}
+\author{
+    William Chen\\
+    \textit{University of California, Irvine}\\
+    Instructor: Prof.\ Sam Behseta\\
+    \textit{Summer Session 1}
+}
+\date{}
+
+\begin{document}
+\maketitle
+\thispagestyle{empty}
+
+\section*{Introduction}
+
+This project develops synthetic clinical data that preserve the
+statistical properties of real data while protecting patient privacy.
+These two goals conflict most sharply inside rare strata: uncommon
+diagnoses and small comorbidity groups carry little weight in global
+fidelity metrics, yet they are often what clinical research cares about
+most, and where a generator is most likely to lose structure or
+memorize individuals. In an earlier study of prior sensitivity in
+Bayesian logistic regression
+(\href{https://github.com/ShengPeiWilliam/bayesian-prior-sensitivity}{Bayesian Prior Sensitivity}),
+I found that estimate stability was driven by a predictor's
+positive-case count, not sample size. This project examines whether
+synthetic fidelity behaves the same way at the stratum level.
+
+\section*{Methods}
+
+As a starting point, I would begin from the data and move up to the
+tree-based generator, holding the generator fixed and varying only the
+input so that any change in fidelity is attributable to the input.
+
+\begin{enumerate}
+    \item \textbf{Sweep the positive count}: Hold everything fixed,
+    including sample size, and vary only the rare stratum's positive
+    count. Compare the structure recovered from the real subset against
+    the CART-synthesized data (\texttt{synthpop}) at each count.
+
+    \item \textbf{Sweep the sample size}: Hold the positive count
+    fixed and vary the sample size instead, to separate the count
+    effect from sample size and prevalence.
+\end{enumerate}
+
+I will first validate this on a simulation with a known ground truth,
+then extend it to the tree-based generation on MIMIC-IV. All work will
+be conducted in R using \texttt{synthpop}, \texttt{rstanarm}, and
+\texttt{ggplot2}.
+
+\section*{Goals}
+
+\begin{itemize}
+    \item Understand how fidelity and privacy are balanced inside rare
+    strata, where preserving structure and protecting individuals pull
+    in opposite directions. This tradeoff is the part I most want to
+    study.
+    \item Compare the two experimental levers directly, sweeping the
+    positive count against sweeping the sample size, to see which one
+    actually drives rare-stratum fidelity.
+    \item Connect this to the tree-based generation used in the
+    project, moving from the input data up to the CART-based
+    synthesizer and examining where it succeeds or fails on rare
+    strata.
+\end{itemize}
+
+\newpage
+
+\section*{Preliminary Result}
+
+As a first step, I ran the simulation with a known interaction
+(\texttt{chf:lactate}, true value $1.5$) in a rare stratum, sweeping
+its positive count with sample size fixed at $500$ (single draw). The
+real-data estimate stabilizes near the truth by a count of about $20$;
+the synthesized estimate does not recover until roughly $80$.
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.65\textwidth]{../data/figure_saturation.png}
+\caption{Recovered \texttt{chf:lactate} interaction versus rare-stratum
+positive count, sample size fixed at 500, single draw.}
+\end{figure}
+
+\end{document}
