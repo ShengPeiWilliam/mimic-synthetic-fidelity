@@ -28,30 +28,22 @@ A CART-Based Analysis of MIMIC-IV Clinical Data}}
 
 % -------------------------------------------------------
 \begin{abstract}
-A prior study found that in Bayesian logistic regression the
-stabilization threshold is governed not by sample size but by the
-number of positive cases for a predictor.
-We ask whether the same holds for CART-based synthetic data generation
-(\texttt{synthpop}) on MIMIC-IV ($n = 70{,}954$ ICU stays), using two
-sweeps that hold the generator fixed and vary only the input: one
-varies the rare stratum's positive count $k$ at fixed sample size, the
-other varies sample size $n$ at fixed $k$, which together separate
-count from prevalence.
-Four measurements agree, and none of them follows sample size. Over
-matched eight-fold increases, raising $k$ drives divergence from 6--17\%
-to exactly zero at $k = 80$ in all six series and cuts interquartile
-width by 42--66\%, while raising $n$ moves neither: divergence stays
-within a few points of where it started and width changes by $-19$ to
-$+10\%$ with no consistent sign. A CART matched to the generator's
-control parameters uses the comorbidity in 4--14\% of replicates at every
-sample size, against 26--40\% at $k = 250$, and a logistic fit to the same
-subsamples detects it in 2--16\% of replicates throughout, with no
-consistent gain on real labels over shuffled ones.
-The target interactions are small, 0.050 to 0.071 on the logit scale
-against a creatinine slope roughly three to four times larger, and a
-500-row subsample carries only 6--8\% power to detect them.
-The mechanism therefore holds in a narrow sense but does not transfer to
-clinical effect sizes.
+A logistic fit's precision is set by the number of positive cases rather
+than by the sample size. This report asks whether the same threshold
+governs a generator, using CART-based synthesis (\texttt{synthpop}) on
+MIMIC-IV ($n = 70{,}954$ ICU stays) and two sweeps that hold the generator
+fixed and vary only the input: one raises the rare stratum's positive
+count $k$ at fixed sample size, the other raises the sample size $n$ at
+fixed $k$, which together separate count from prevalence.
+It does, on every quantity measured. Over increases of comparable size,
+raising $k$ drives divergence to zero and cuts interquartile width by
+42--66\% in all six series, while raising $n$ moves neither. Two of the
+four quantities never involve the synthesizer at all, so what the
+threshold describes is the stratum rather than \texttt{synthpop}.
+The finding transfers as a mechanism and not as a remedy. The interactions
+available in MIMIC-IV are small enough that a 500-row subsample carries
+6--8\% power to detect them, which is what the sweeps returned, so at these
+sizes no count reachable inside a subsample makes the estimate usable.
 Two recommendations follow: establish that a target effect is estimable
 in the source data before attributing any discrepancy to the generator,
 and calibrate variable-selection diagnostics against a permutation null,
@@ -65,9 +57,17 @@ Synthetic data is often proposed as a way to share clinical records
 without exposing patients, but whether it preserves the relationships
 researchers care about is a separate question from whether it looks
 realistic overall.
-A prior analysis of the \texttt{birthwt} dataset found that under
-Bayesian logistic regression, posterior stability depends on the number
-of positive cases for a predictor rather than on overall sample size.
+A prior analysis of the \texttt{birthwt} dataset found that under Bayesian
+logistic regression, posterior stability depends on the number of positive
+cases for a predictor rather than on overall sample size. That a logistic
+fit's precision is set by the event count is itself established
+\cite{peduzzi1996, vansmeden2016}, and the conditions under which small
+event counts produce separation have been characterised since
+\cite{albert1984}. What is not established is whether the same threshold
+governs a \emph{generator}. Whether a CART-based synthesizer preserves a
+rare-stratum interaction is a question about which variables a tree spends
+a split on, not about the curvature of a likelihood, and the two need not
+share a threshold.
 
 This report asks whether the same mechanism holds for CART-based
 sequential synthesis. The generator is held fixed throughout; the
@@ -89,12 +89,16 @@ an associated ICU stay. One row per ICU stay (73{,}181 stays) was built from
 \texttt{icustays}, \texttt{patients}, \texttt{admissions}, and
 \texttt{diagnoses\_icd}, the last supplying the comorbidity flags.
 Dropping the 3\% of stays with no first-day creatinine leaves 70{,}954
-rows; all subsampling draws from this pool.
+rows; all subsampling draws from this pool. Age is MIMIC-IV's
+\texttt{anchor\_age}, which is the age at the anchor year rather than at
+admission and is censored above 89.
 
 \subsection{Comorbidity Screening}
 
-Five comorbidities were defined by simplified ICD-9/ICD-10 groupings and
-counted by admission rather than by ICU stay, the unit the pool is indexed
+Five comorbidities were defined by simplified ICD-9/ICD-10 prefix
+groupings rather than a validated index such as Elixhauser or Charlson,
+since what the sweeps need is a binary flag with a known positive count
+rather than a calibrated severity score. They are counted by admission rather than by ICU stay, the unit the pool is indexed
 on: COPD 7{,}244, CHF 17{,}412, Diabetes 19{,}806, Renal Failure 25{,}369
 and Hypertension 34{,}979. The three least common were carried forward.
 All five are common in the pool; the rare stratum is created by the
@@ -103,8 +107,9 @@ subsampling below, not found in the data.
 \subsection{Continuous Variable Selection}
 
 Creatinine was chosen from five first-day lab candidates for its 97\%
-coverage and its link to CHF through cardiorenal syndrome. The maximum in
-the first 24 hours was taken, capped at the 99.5th percentile ($11$~mg/dL).
+coverage and its link to CHF through cardiorenal syndrome. The maximum in the first 24 hours was taken, capped at the 99.5th
+percentile ($11$~mg/dL) and left untransformed, so every creatinine
+coefficient below is per mg/dL.
 
 % -------------------------------------------------------
 \section{Methods}
@@ -155,7 +160,10 @@ destroys its association with the outcome, supplying the null.
 
 MIMIC-IV carries no known ground truth, so the interaction fit on the
 whole pool stands in as the reference, $\hat\beta_{\text{full}}$, and every
-subsample estimate below is read against it. The three interactions differ
+subsample estimate below is read against it. The mechanism was first
+checked on a simulation with a known data-generating process, where bias
+against the truth is measurable directly; that notebook is in the
+repository and only the MIMIC-IV results are reported here. The three interactions differ
 in sign, CHF and Diabetes dampening creatinine's main effect while COPD
 steepens it, and all three are roughly three to four times smaller than
 that main effect.
@@ -222,9 +230,12 @@ inestimable and divergent sum to one.
 \end{figure}
 
 \paragraph{Count sweep.}
-All six curves reach zero at $k = 80$ and stay there. The threshold moves
-with neither prevalence, which varies nearly threefold across the three
-comorbidities, nor the sign of the interaction. Below it, divergence runs
+All six curves reach zero at $k = 80$ and stay there. That zero is 0 of 100
+replicates, which bounds the rate at 3.6\% rather than establishing it as
+nil, and the grid steps from 40 to 80, so what the data supports is a
+threshold in $(40, 80]$. Wherever it sits, it moves with neither
+prevalence, which varies nearly threefold across the three comorbidities,
+nor the sign of the interaction. Below it, divergence runs
 at 18--40\% at $k = 5$ and is higher on the synthetic side in ten of the
 twelve failing cells. The inestimable rate is narrower still: synthetic only,
 $k = 5$ only, at 4--6\%.
@@ -317,7 +328,10 @@ $k = 250$, but the permutation null rises with it, from 0.00 to as high as
 of the column itself, from 1\% positive at $k = 5$ to 50\% at $k = 250$,
 and a balanced binary variable is structurally easy to split on whether or
 not it carries signal \cite{strobl2007}. Any diagnostic of this form
-requires permutation calibration before it can be read.
+requires permutation calibration before it can be read. The rates in both
+tables are proportions over 100 replicates and are less precise than they
+look: 0.27 carries a 95\% interval of $[0.19, 0.37]$, and 0.00 bounds the
+rate at 0.036 rather than establishing it as nil.
 
 \begin{table}[H]
 \centering
@@ -403,8 +417,8 @@ visibly, by declining to spend a split.
 Reporting the failure rates separately from the spread changed the reading
 of this data more than any other decision. Mixing them inflates apparent
 instability at low counts, since divergent fits push the quantiles
-outward, and it hides the sharpest result in the study, the common
-threshold at $k = 80$.
+outward, and it hides the clearest result in the study, a
+failure threshold common to all six series.
 
 \paragraph{A privacy-fidelity tension.}
 CART's reluctance to isolate a subgroup with few supporting cases is not
@@ -431,21 +445,25 @@ more reliable of the two outcomes. Monte Carlo error at $M = 100$ reaches 13\% o
 interquartile widths, and the paired tree tests turn on at most 40
 discordant replicates per cell in the count sweep and 14 in the size
 sweep, so a cell that
-misses significance is not evidence that nothing is there. One continuous variable and one outcome were
-examined, Renal Failure and Hypertension were screened but not analyzed,
-and all results come from a single MIMIC-IV snapshot.
+misses significance is not evidence that nothing is there. Divergence is identified by the size of the coefficient rather than by a
+separation test, and the penalized fit that would distinguish separation
+from thin information \cite{firth1993} was not run, so the threshold is
+described here and not explained. One continuous variable and one outcome
+were examined, Renal Failure and Hypertension were screened but not
+analyzed, and all results come from a single MIMIC-IV snapshot.
 
 % -------------------------------------------------------
 \section{Conclusion}
 
 The positive count governs every quantity measured here, and sample size
-governs none of them. Divergence falls to zero at a count of eighty for
+governs none of them. Divergence falls to zero by a count of eighty in
 all three comorbidities and both data sources; interquartile width falls
 by 42--66\% over a matched increase in the count; CART's use of the
 comorbidity is flat across a sixteen-fold change in $n$; and a logistic
 fit to the same subsamples shows no consistent separation from its
-permutation null under either lever. Four readings, two of them from data the synthesizer
-never touched. In that narrow sense the finding from Bayesian logistic
+permutation null under either lever. Four readings on the same replicates, so not four independent
+confirmations, but two of them come from data the synthesizer never
+touched. In that narrow sense the finding from Bayesian logistic
 regression does extend to CART-based synthesis.
 
 The wider claim does not survive contact with clinical effect sizes. At
@@ -464,6 +482,29 @@ balance from zero to 0.32 across the range tested here.
 % -------------------------------------------------------
 {\footnotesize
 \begin{thebibliography}{9}
+
+\bibitem{peduzzi1996}
+Peduzzi, P., Concato, J., Kemper, E., Holford, T.R., \& Feinstein, A.R. (1996).
+A simulation study of the number of events per variable in logistic
+regression analysis.
+\textit{Journal of Clinical Epidemiology}, 49(12), 1373--1379.
+
+\bibitem{vansmeden2016}
+van Smeden, M., de Groot, J.A.H., Moons, K.G.M., et al. (2016).
+No rationale for 1 variable per 10 events criterion for binary logistic
+regression analysis.
+\textit{BMC Medical Research Methodology}, 16, 163.
+
+\bibitem{albert1984}
+Albert, A., \& Anderson, J.A. (1984).
+On the existence of maximum likelihood estimates in logistic regression
+models.
+\textit{Biometrika}, 71(1), 1--10.
+
+\bibitem{firth1993}
+Firth, D. (1993).
+Bias reduction of maximum likelihood estimates.
+\textit{Biometrika}, 80(1), 27--38.
 
 \bibitem{heinze2002}
 Heinze, G., \& Schemper, M. (2002).
