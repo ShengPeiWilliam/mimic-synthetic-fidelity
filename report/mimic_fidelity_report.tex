@@ -35,15 +35,23 @@ MIMIC-IV ($n = 70{,}954$ ICU stays) and two sweeps that hold the generator
 fixed and vary only the input: one raises the rare stratum's positive
 count $k$ at fixed sample size, the other raises the sample size $n$ at
 fixed $k$, which together separate count from prevalence.
-It does, on every quantity measured. Over increases of comparable size,
-raising $k$ drives divergence to zero and cuts interquartile width by
-42--66\% in all six series, while raising $n$ moves neither. Two of the
-four quantities never involve the synthesizer at all, so what the
-threshold describes is the stratum rather than \texttt{synthpop}.
+It does, but the generator adds no threshold of its own. Over increases of
+comparable size, raising $k$ drives divergence to zero between counts of
+forty and eighty and cuts interquartile width by 42--66\% in all six
+series, while raising $n$ moves neither. Two of the four quantities never
+involve the synthesizer at all, so the threshold belongs to the stratum and
+\texttt{synthpop} inherits it rather than imposing a second one. What
+synthesis contributes instead is a bias no count removes: in a companion
+simulation with a known data-generating process, the synthetic median
+recovers 99\% of a true interaction of 0.5 but only 41\% of one of 3, at a
+count where neither arm fails.
 The finding transfers as a mechanism and not as a remedy. The interactions
 available in MIMIC-IV are small enough that a 500-row subsample carries
-6--8\% power to detect them, which is what the sweeps returned, so at these
-sizes no count reachable inside a subsample makes the estimate usable.
+6--7\% power to detect them, which is what the sweeps returned: the smallest
+interaction such a subsample could detect is seven to twelve times the one
+MIMIC-IV holds, and eighty percent power would need 23{,}384 to 67{,}238
+rows. No count reachable inside a subsample of this size makes the estimate
+usable.
 Two recommendations follow: establish that a target effect is estimable
 in the source data before attributing any discrepancy to the generator,
 and calibrate variable-selection diagnostics against a permutation null,
@@ -89,7 +97,24 @@ an associated ICU stay. One row per ICU stay (73{,}181 stays) was built from
 \texttt{icustays}, \texttt{patients}, \texttt{admissions}, and
 \texttt{diagnoses\_icd}, the last supplying the comorbidity flags.
 Dropping the 3\% of stays with no first-day creatinine leaves 70{,}954
-rows; all subsampling draws from this pool. Age is MIMIC-IV's
+rows; all subsampling draws from this pool. Those 2{,}227 stays are not
+missing at random. They die in hospital at 28.1\% against 10.9\% for the
+stays kept, their median length of stay is 0.73 days against 1.96, and they
+carry every comorbidity less often: CHF 15.4\% against 27.7\%, Diabetes
+21.7\% against 30.5\%, COPD 7.9\% against 11.3\%. The pattern is the one a
+first-day lab implies. A stay that ends within hours, by death or by
+discharge, has neither the time for the draw nor the encounter for the
+coding, so the lower comorbidity rates record thinner documentation rather
+than healthier patients. The pool is conditioned on surviving long enough to
+be measured, and $\hat\beta_{\text{full}}$ is accordingly the interaction
+among stays that clear that bar rather than among ICU stays at large. Both
+arms of every sweep are drawn from the same pool, so the comparison this
+report rests on is unaffected; what the selection limits is the clinical
+reading of the reference. Rows are not independent:
+the outcome and the comorbidity flags are recorded per admission, and the
+70{,}954 stays span 64{,}308 admissions and 49{,}563 patients, so 30\% of
+rows repeat a patient. Standard errors on the full-pool fit are clustered
+on patient. Age is MIMIC-IV's
 \texttt{anchor\_age}, which is the age at the anchor year rather than at
 admission and is censored above 89.
 
@@ -153,17 +178,31 @@ comorbidity earns a split, against a likelihood-ratio test on the same
 rows that drops the comorbidity and its interaction together, so both are
 asked the same question. Every configuration is re-run with the
 comorbidity column shuffled, which leaves the positive count intact and
-destroys its association with the outcome, supplying the null.
+destroys its association with the outcome, supplying the null. The two
+columns are compared across the whole grid by a conditional logistic model,
+\texttt{used \textasciitilde{} observed + observed:log2k\_c + strata(pair)},
+whose strata are the (comorbidity, replicate) pairs holding one observed and
+one shuffled outcome each, with $\log_2 k$ centred at $k = 40$ so that the
+main effect is read there; the fit runs over 4{,}200 rows and 585 splits.
+
+Throughout, the synthetic arm is fitted the way an analyst who has been handed
+one synthetic file would fit it: a single synthetic copy, an ordinary GLM, and
+no correction for the variance synthesis itself contributes. Proper inference
+from synthetic data uses several copies and a combining rule
+\cite{raab2016}, which would widen the synthetic intervals reported here. The
+naive fit is the one measured because it is the one a data recipient
+performs, but the comparison against the real arm is therefore between
+procedures as used, not between estimators of matched validity.
 
 % -------------------------------------------------------
 \section{The Full-Pool Reference}
 
 MIMIC-IV carries no known ground truth, so the interaction fit on the
 whole pool stands in as the reference, $\hat\beta_{\text{full}}$, and every
-subsample estimate below is read against it. The mechanism was first
-checked on a simulation with a known data-generating process, where bias
-against the truth is measurable directly; that notebook is in the
-repository and only the MIMIC-IV results are reported here. The three interactions differ
+subsample estimate below is read against it. A companion simulation with a known
+data-generating process, where bias against the truth is measurable
+directly, is reported alongside the sweeps in
+Section~\ref{sec:sim}. The three interactions differ
 in sign, CHF and Diabetes dampening creatinine's main effect while COPD
 steepens it, and all three are roughly three to four times smaller than
 that main effect.
@@ -174,13 +213,13 @@ that main effect.
 \toprule
 Comorbidity & Creatinine & $\hat\beta_{\text{full}}$ & SE & $p$ \\
 \midrule
-CHF      & 0.208 & $-0.0497$ & 0.0128 & $1.1\times10^{-4}$ \\
-Diabetes & 0.234 & $-0.0709$ & 0.0126 & $2.0\times10^{-8}$ \\
-COPD     & 0.188 & $+0.0668$ & 0.0197 & $6.9\times10^{-4}$ \\
+CHF      & 0.208 & $-0.0497$ & 0.0141 & $4.4\times10^{-4}$ \\
+Diabetes & 0.234 & $-0.0709$ & 0.0145 & $1.1\times10^{-6}$ \\
+COPD     & 0.188 & $+0.0668$ & 0.0232 & $4.0\times10^{-3}$ \\
 \bottomrule
 \end{tabular}
 \caption{Comorbidity--creatinine interaction on the full pool, with the
-creatinine slope it modulates.}
+creatinine slope it modulates. Standard errors are clustered on patient.}
 \label{tab:power}
 \end{table}
 
@@ -205,7 +244,11 @@ synthetic table generates its own column and can produce none.
 
 The cutoff follows the scale of the target, around $0.05$ in the full
 pool, and recomputing at 5 and 10 leaves every comparison pointing the
-same way.
+same way. It under-detects at the smallest counts: at $k = 5$ between 64\%
+and 76\% of real fits are separated, which a penalized fit
+\cite{firth1993} confirms, while $|2|$ flags 18--34\% of them, since
+\texttt{glm} stops after twenty-five iterations rather than running to the
+boundary. From $k = 20$ up the two agree.
 Both modes are reported as shares of all $M$ replicates, so converged,
 inestimable and divergent sum to one.
 
@@ -225,19 +268,27 @@ inestimable and divergent sum to one.
     \caption{Divergence rate under each lever, three comorbidities
     $\times$ two sources in both panels. Left: positive count varying at
     $n = 500$. Right: sample size varying at $k = 20$, where prevalence
-    falls from 8\% to 0.5\%. Inestimable fits occur on the synthetic side only and are reported in the text.}
+    falls from 8\% to 0.5\%. Inestimable fits occur on the synthetic side only and are reported in the text.
+    Both panels use the $|2|$ cutoff, which under-detects at $k \leq 10$
+    (Section~\ref{sec:failure}), so the left panel's first two counts are
+    floors rather than rates.}
     \label{fig:nonconv}
 \end{figure}
 
 \paragraph{Count sweep.}
-All six curves reach zero at $k = 80$ and stay there. That zero is 0 of 100
-replicates, which bounds the rate at 3.6\% rather than establishing it as
-nil, and the grid steps from 40 to 80, so what the data supports is a
-threshold in $(40, 80]$. Wherever it sits, it moves with neither
+Every series is at zero by $k = 80$, but not at the same count: the CHF and
+COPD real arms are already there at $k = 40$, where the other four sit at
+2--4\%, two to four replicates out of a hundred. Each zero is 0 of 100,
+which bounds a rate at 3.6\% rather than establishing it as nil, so what
+the data supports is a threshold somewhere in $(40, 80]$ for each series
+rather than one shared value. Wherever it sits, it moves with neither
 prevalence, which varies nearly threefold across the three comorbidities,
 nor the sign of the interaction. Below it, divergence runs
 at 18--40\% at $k = 5$ and is higher on the synthetic side in ten of the
-twelve failing cells. The inestimable rate is narrower still: synthetic only,
+twelve failing cells. Both exceptions are COPD, at $k = 5$ and $k = 10$,
+where the real arm is the one that fails more often;
+Section~\ref{sec:sim} reproduces that reversal under a known truth and
+gives it a mechanism. The inestimable rate is narrower still: synthetic only,
 $k = 5$ only, at 4--6\%.
 
 \paragraph{Size sweep.}
@@ -245,6 +296,10 @@ No sample size does the same. Over the matched 8-fold increase in $n$
 every series changes by between $-29\%$ and $+25\%$, and none comes near
 zero (Figure~\ref{fig:nonconv}, right). COPD is the plainest case: its
 real arm fails at 12--14\% at every one of the five sample sizes.
+What does separate cleanly under this lever is the arm rather than the
+size: the synthetic rate is the higher of the two in fourteen of the
+fifteen cells and tied in the fifteenth, by 3 to 19 points, and no sample
+size closes the gap.
 The inestimable rate is zero in all fifteen cells, including at $n = 2000$,
 where prevalence matches the $k = 5$ cells that lost the stratum 4--6\% of
 the time. Failure follows the count, and only the count.
@@ -266,8 +321,9 @@ them for diverging, so the decline is if anything understated.
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.55\textwidth]{../figures/spread_ribbon.png}
-    \caption{Comorbidity $\times$ creatinine, real vs.\ synthetic. Band =
-    middle 50\% of converged fits, dashed line = $\hat\beta_{\text{full}}$.}
+    \caption{Comorbidity $\times$ creatinine, real vs.\ synthetic, plotted as
+    distance from $\hat\beta_{\text{full}}$ so that zero is the full-pool
+    value in all three panels. Band = middle 50\% of converged fits.}
     \label{fig:spread}
 \end{figure}
 
@@ -275,9 +331,35 @@ What low counts cost is precision, not location: in 39 of the 42 cells the
 middle half of the estimates still contains $\hat\beta_{\text{full}}$, the
 three exceptions all COPD at $k \leq 10$. The two arms differ on both
 counts, and in the same direction. The synthetic median sits below the
-real one in 17 of the 21 counts, and where neither side fails at all
-($k \geq 80$) synthetic widths run 1.1 to 1.6 times the real ones for CHF
-and Diabetes and roughly equal for COPD.
+real one in 17 of the 21 counts, and the synthetic spread is the wider of
+the two.
+
+How much wider is worth stating against a rate rather than against the
+real arm. The variance of an interaction draws on both groups, so it
+scales as $1/k + 1/(n-k)$, and holding $n$ at 500 means raising $k$ also
+thins the negatives. Rescaling the $k = 250$ width by that factor
+reproduces the real arm closely: the ratio of observed to predicted has a
+median of 0.97 and stays within 0.85 and 1.07 across the nine cells at
+$k \in \{40, 80, 150\}$; the $k = 250$ anchor is fixed at 1 by construction,
+and counts below 40 are excluded because divergence discards too many
+replicates there for a width to mean anything. The synthetic arm sits
+higher, median 1.14 against 0.97 and maximum 1.35, and the comparison that
+carries the weight is the paired one rather than the count of cells above 1:
+at every one of the nine matched cells, same comorbidity and same count, the
+synthetic ratio exceeds the real one (Figure~\ref{fig:ratio}; sign test
+$p = 0.004$). The count accounts for the real spread. The synthetic arm
+carries a further excess it does not explain, at every count where both arms
+can be read.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.55\textwidth]{../figures/width_vs_theory.png}
+    \caption{Interquartile width against the width the $1/k + 1/(n-k)$ rate
+    predicts from the $k = 250$ anchor, which is fixed at 1 by construction and
+    omitted. The real arm tracks the rate; the synthetic arm sits above it in
+    six of the nine cells, with ranges that overlap.}
+    \label{fig:ratio}
+\end{figure}
 
 \subsection{Experiment 2: Size Sweep}
 
@@ -297,10 +379,10 @@ it would show.
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.55\textwidth]{../figures/size_ribbon.png}
-    \caption{Comorbidity $\times$ creatinine with the positive count held
-    at 20. Band = middle 50\% of converged fits, dashed line =
-    $\hat\beta_{\text{full}}$. In the COPD panel the synthetic median sits
-    below the reference at every $n$ and the real median above it.}
+    \caption{Comorbidity $\times$ creatinine with the positive count held at
+    20, on the same scale as Figure~\ref{fig:spread}. In the COPD panel the
+    synthetic band sits below zero at every $n$ while the real one
+    straddles it.}
     \label{fig:size}
 \end{figure}
 
@@ -316,6 +398,100 @@ The size effect itself cannot be resolved from noise. The configuration
 $k = 20$, $n = 500$ appears in both experiments and so is measured twice
 under independent seeds; the readings differ by 13\%, 10\% and 0.3\%, the
 same order as the variation across $n$.
+
+\subsection{A Simulation with Known Truth}
+\label{sec:sim}
+
+MIMIC-IV cannot say whether synthesis attenuates the interaction, since
+there is no truth to compare against and, at these effect sizes, no power
+to find one. A companion simulation supplies both: a population is
+generated from a logistic model with a known \texttt{chf}\,$\times$\,lactate
+interaction, and the same count sweep is run at three true values, 200
+replicates per cell.
+
+\begin{table}[H]
+\centering
+\begin{tabular}{ccccccc}
+\toprule
+& \multicolumn{2}{c}{Median estimate} & & & \multicolumn{2}{c}{Median $|$error$|$} \\
+\cmidrule(lr){2-3}\cmidrule(lr){6-7}
+True value & Real & Synthetic & Shortfall & Absolute gap & Real & Synthetic \\
+\midrule
+0.5 & 0.521 & 0.496 & 1\%  & 0.004 & 0.164 & 0.219 \\
+1.5 & 1.73  & 0.891 & 41\% & 0.609 & 0.292 & 0.713 \\
+3.0 & 2.75  & 1.22  & 59\% & 1.780 & 0.688 & 1.90  \\
+\bottomrule
+\end{tabular}
+\caption{Estimates at $k = 250$ against the value put into the
+data-generating process. Shortfall and absolute gap compare the median to
+the truth; the last two columns are the median of $|\hat\beta - \text{true}|$
+over replicates. Failure at this count has fallen to 0--0.5\% in the real arm
+and 0--4.5\% in the synthetic.}
+\label{tab:sim}
+\end{table}
+
+The count threshold holds at the two smaller effect sizes, and the synthetic
+arm clears it later than the real one at both: divergence reaches zero at
+$k = 40$ against $k = 80$ at a true value of 0.5, and at $k = 150$ against
+$k = 250$ at 1.5. At a true value of 3 neither arm reaches zero anywhere on
+the grid, and the real rate is not even monotone, rising from 10.5\% at
+$k = 5$ to 29\% at $k = 20$ before falling to 0.5\% at $k = 250$. The reason
+is the cutoff itself: an estimate pinned near zero cannot exceed it, so at low
+counts a strong interaction is missed rather than blown up. Convergence there
+is not success. At $k = 20$ the 71\% of real replicates that converge have a
+median of $-0.201$ against a truth of 3. What the simulation adds is
+the size of what survives, and it is not a fixed fraction: the synthetic
+median recovers 99\% of a true value of 0.5, 59\% of 1.5 and 41\% of 3
+(Table~\ref{tab:sim}). The shortfall widens as the target grows and the
+absolute gap widens faster, from 0.004 to 1.78.
+
+The row at 0.5 is therefore not evidence that small interactions survive
+synthesis. An estimator that saturates looks accurate against any target
+small enough, and this one saturates: the three synthetic medians sit close
+to $0.70\sqrt{\text{true}}$ across the range. The per-replicate errors say
+the same thing without the fit: at a true value of 0.5 the two medians agree
+to within 1\%, but the median absolute error is 0.219 on the synthetic side
+against 0.164 on the real, 34\% larger. A median that lands on the truth is
+not the same as estimates that do. Nothing in the table extends
+to the 0.050 to 0.071 MIMIC-IV offers, an order of magnitude below the
+smallest value simulated. Recomputing the divergence cutoff at 5, 10, 20
+and 40 moves the shortfall by at most five points.
+
+Attenuation is bought, not incurred. At a true value of 3 the real arm
+diverges in 21--29\% of replicates between $k = 20$ and $k = 80$ while the
+synthetic arm diverges in 2.5--10.5\%, the reverse of the pattern on
+MIMIC-IV everywhere but the two COPD cells of Figure~\ref{fig:nonconv}. A strong interaction puts the real subsample close to
+separation; the tree smooths that away, so the synthetic fit converges
+more readily and converges on the wrong value. At $k = 80$ the real median
+is 2.85 against a truth of 3, and the synthetic median is $-0.150$.
+
+Below the threshold the count governs the sign and not only the spread. The
+real median carries the wrong sign through $k = 5$ at a true value of 0.5,
+through $k = 10$ at 1.5 and through $k = 20$ at 3; the synthetic median stays
+wrong one to two counts longer in each case, through $k = 40$, $k = 40$ and
+$k = 80$. The larger the interaction, the longer the median points the wrong
+way, which is the same mechanism read from the other side: a strong effect
+drives more of the low-count replicates to the boundary, and the ones left
+converging are the ones that did not find it. It is the pattern the COPD
+panel of Figure~\ref{fig:size} shows on MIMIC-IV, where twenty positives
+hold the synthetic median at the wrong sign through a sixteenfold increase
+in $n$.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.55\textwidth]{../figures/sim_median.png}
+    \caption{Median estimate against the positive count at three true values,
+    dashed line the truth in each panel. Table~\ref{tab:sim} reports the
+    $k = 250$ column; the curve shows that the synthetic arm reaches it from
+    below and non-monotonically, passing through $-0.150$ at $k = 80$ in the
+    rightmost panel.}
+    \label{fig:simmedian}
+\end{figure}
+
+Taken with the MIMIC-IV sweeps the picture is consistent in one direction
+and not the other. The count threshold appears wherever it can be looked
+for, at simulated effect sizes and at clinical ones. Usable recovery
+appears only at simulated ones.
 
 \subsection{Tree Diagnosis: The Diagnostic Needs a Null}
 
@@ -355,13 +531,20 @@ comorbidity as a split, against its permutation null.}
 \label{tab:tree}
 \end{table}
 
-Cell by cell the diagnostic is underpowered. Paired tests over the 100
-replicates clear $p < 0.01$ in two of the 21 cells, CHF at $k = 40$
-($p = 0.004$) and Diabetes at $k = 250$ ($p = 0.002$), and only the latter
-survives a Bonferroni correction; both sit isolated among non-significant
-neighbours. Pooled over the grid the real column does beat the shuffled
-one, 249 discordant replicates to 164, but the margin is thin because the
-null has risen to meet it.
+Read across the grid rather than cell by cell, the effect is clear. A
+conditional logistic model with each replicate as its own stratum puts the
+real column ahead of the shuffled one by an odds ratio of 2.0 at $k = 40$
+($p = 6\times10^{-6}$), and that advantage narrows as the count rises, by a
+factor of 0.81 per doubling ($p = 0.015$). Fitted across the sweep it runs
+from 3.7 at $k = 5$ to 1.2 at $k = 250$, which is the null closing on the
+observed rate rather than the observed rate pulling away. CHF and COPD show
+both terms on their own; Diabetes shows neither.
+
+The same data supports much less one cell at a time. Most replicates are
+concordant and carry no information about which column is better, so each
+paired test turns on a handful of discordant pairs: $p < 0.01$ in two of
+the 21 cells, one surviving a Bonferroni correction, against 249 discordant
+replicates to 164 when the grid is pooled.
 
 \subsubsection*{Size sweep}
 
@@ -403,7 +586,7 @@ means low prevalence.
 
 Neither sweep implicates CART on its own. A GLM fitted to the same
 subsamples detects the comorbidity in 2--16\% of replicates in every cell
-of both sweeps, against the 6--8\% predicted by rescaling the full-pool
+of both sweeps, against the 6--7\% predicted by rescaling the full-pool
 standard errors to $n = 500$, and it does no better on real labels than on
 shuffled ones: over the size sweep
 the observed rate averages 9.1\% and the permuted 9.5\%, with no trend in
@@ -418,7 +601,7 @@ Reporting the failure rates separately from the spread changed the reading
 of this data more than any other decision. Mixing them inflates apparent
 instability at low counts, since divergent fits push the quantiles
 outward, and it hides the clearest result in the study, a
-failure threshold common to all six series.
+failure threshold that every series reaches between $k = 40$ and $k = 80$.
 
 \paragraph{A privacy-fidelity tension.}
 CART's reluctance to isolate a subgroup with few supporting cases is not
@@ -430,10 +613,22 @@ $k = 5$. The tension is a property of the method rather than an
 implementation defect, though only its fidelity side is measured here.
 
 \paragraph{The design, not the generator.}
-A 500-row subsample carries 6--8\% power against these interactions, and
-the GLM arm returned 6.7--10.1\%. Theory and experiment agreeing on a
-null result is what rules out a defect in the pipeline and locates the
-failure in the design rather than in the generator.
+A 500-row subsample carries 6--7\% power against these interactions and the
+GLM arm returned 6.7--10.1\%, both within a few points of the 5\% a test
+with no power at all would produce. Theory and experiment landing in the
+same place is what rules out a defect in the pipeline and locates the
+failure in the design rather than in the generator. The size of the gap is
+easier to read as a detectable effect than as a rate: at $n = 500$ the
+smallest interaction detectable at 80\% power is 0.472 for CHF, 0.485 for
+Diabetes and 0.775 for COPD, against the 0.0497, 0.0709 and 0.0668 actually
+present, a factor of 9.5, 6.8 and 11.6. Reaching those interactions instead
+of that floor would need between 23{,}384 and 67{,}238 rows. The floor also
+explains a choice in Section~\ref{sec:sim} that would otherwise look
+arbitrary: the smallest interaction put into the simulated
+data-generating process, 0.5, is of the same order as the smallest this
+design can detect at all, so the simulation starts where MIMIC-IV's
+detectable range ends. The two data-generating processes differ, so the
+floors are comparable in scale and not in value.
 
 \paragraph{Limitations.}
 The diagnostic tree is a proxy for the generator: three predictors rather
@@ -445,19 +640,22 @@ more reliable of the two outcomes. Monte Carlo error at $M = 100$ reaches 13\% o
 interquartile widths, and the paired tree tests turn on at most 40
 discordant replicates per cell in the count sweep and 14 in the size
 sweep, so a cell that
-misses significance is not evidence that nothing is there. Divergence is identified by the size of the coefficient rather than by a
-separation test, and the penalized fit that would distinguish separation
-from thin information \cite{firth1993} was not run, so the threshold is
-described here and not explained. One continuous variable and one outcome
+misses significance is not evidence that nothing is there. Divergence at the smallest counts is largely separation: a penalized fit
+removes 60--70\% of it at $k = 5$ and most of the rest by $k = 20$, but it
+does not move the count at which divergence stops, which stays at 40 for
+CHF and COPD under both fits. The threshold is not an artifact of the
+estimator, though what sets its location is not established here. One continuous variable and one outcome
 were examined, Renal Failure and Hypertension were screened but not
-analyzed, and all results come from a single MIMIC-IV snapshot.
+analyzed, the pool excludes the short, high-mortality stays that carry no
+first-day creatinine, and all results come from a single MIMIC-IV
+snapshot.
 
 % -------------------------------------------------------
 \section{Conclusion}
 
 The positive count governs every quantity measured here, and sample size
-governs none of them. Divergence falls to zero by a count of eighty in
-all three comorbidities and both data sources; interquartile width falls
+governs none of them. Divergence falls to zero between counts of forty
+and eighty in all three comorbidities and both data sources; interquartile width falls
 by 42--66\% over a matched increase in the count; CART's use of the
 comorbidity is flat across a sixteen-fold change in $n$; and a logistic
 fit to the same subsamples shows no consistent separation from its
@@ -466,8 +664,11 @@ confirmations, but two of them come from data the synthesizer never
 touched. In that narrow sense the finding from Bayesian logistic
 regression does extend to CART-based synthesis.
 
-The wider claim does not survive contact with clinical effect sizes. At
-practical subsample sizes neither arm recovers the MIMIC-IV interactions:
+The wider claim does not survive contact with clinical effect sizes. The
+simulation shows what recovery looks like when the target is large enough
+to reach, and it is partial: at a true value of 3 the synthetic median
+reaches 1.22. At practical subsample sizes neither arm recovers the
+MIMIC-IV interactions at all:
 even the narrowest cell spans nearly four times the quantity being
 estimated, and with the count held at 20 the COPD synthetic median
 carries the wrong sign at every sample size tested. Where the two can be compared, the synthetic
@@ -510,6 +711,11 @@ Bias reduction of maximum likelihood estimates.
 Heinze, G., \& Schemper, M. (2002).
 A solution to the problem of separation in logistic regression.
 \textit{Statistics in Medicine}, 21(16), 2409--2419.
+
+\bibitem{raab2016}
+Raab, G.M., Nowok, B., \& Dibben, C. (2016).
+Practical data synthesis for large samples.
+\textit{Journal of Privacy and Confidentiality}, 7(3), 67--97.
 
 \bibitem{nowok2016}
 Nowok, B., Raab, G.M., \& Dibben, C. (2016).
