@@ -257,7 +257,8 @@ comorbidity-by-size comparisons, and no sample size closes the gap.
         \includegraphics[width=\textwidth]{../figures/size_divergence.png}
     \end{minipage}
     \caption{Divergence falls away under the count (left) and not under the
-    sample size (right); the two smallest counts are detection floors.}
+    sample size (right); note the differing vertical scales. The two smallest
+    counts are detection floors.}
     \label{fig:nonconv}
 \end{figure}
 
@@ -320,8 +321,8 @@ $p = 0.004$).
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.45\textwidth]{../figures/width_vs_theory.png}
-    \caption{The real arm tracks the width its count predicts; the
-    synthetic arm sits above it at every count.}
+    \caption{The real arm tracks the width its count predicts; the synthetic
+    arm sits above the real one in all nine matched cells.}
     \label{fig:ratio}
 \end{figure}
 
@@ -387,40 +388,40 @@ wrong value. The attenuation is bought, not incurred.
 What looks like recovery in the count sweep is class balance, not signal. The
 diagnostic rises from 0 at $k = 5$ to 0.26 to 0.40 at $k = 250$, but the
 permutation null rises with it, to as high as 0.32
-(Figure~\ref{fig:treediag}, left), since what grows alongside the count is the
+(Figure~\ref{fig:treecount}), since what grows alongside the count is the
 balance of the column itself, from 1\% positive to 50\%, and a balanced binary
 variable is easy to split on whether or not it carries signal
-\cite{strobl2007}. Read across the grid rather than cell by cell the signal is
-still there. Pooling the grid with a conditional logistic model,
-\texttt{used \textasciitilde{} observed + observed:log2k\_c + strata(pair)},
-stratified on (comorbidity, replicate) pairs with $\log_2 k$ centred at
-$k = 40$, puts the real column ahead of the shuffled one by an odds ratio of 2.0
-at $k = 40$ ($p = 6\times10^{-6}$), narrowing by 0.81 per doubling of the count
-($p = 0.015$) as the null closes in.
+\cite{strobl2007}. Pooled across the grid the signal is still there. A
+conditional logistic model, \texttt{used \textasciitilde{} observed +
+observed:log2k\_c + strata(pair)}, stratified on (comorbidity, replicate) pairs
+with $\log_2 k$ centred at $k = 40$, puts the real column ahead of the shuffled
+one by an odds ratio of 2.0 ($p = 6\times10^{-6}$), narrowing by 0.81 per
+doubling of the count ($p = 0.015$) as the null closes in.
 
 Holding the count at 20 runs class balance the other way, down to 0.5\% positive
 at $n = 4000$. The null falls with it to near zero while the observed rate stays
-where the count sweep left it (Figure~\ref{fig:treediag}, right), and with the null out
+where the count sweep left it (Figure~\ref{fig:treesize}), and with the null out
 of the way the signal is legible without pooling: the real column wins 104
 discordant replicates to 32. The diagnostic is readable where its null is near
 zero, which on this data means low prevalence.
 
 \begin{figure}[H]
     \centering
-    \begin{minipage}{0.48\textwidth}
+    \begin{minipage}[t]{0.48\textwidth}
         \centering
         \includegraphics[width=\textwidth]{../figures/tree_count_detect.png}
-    \end{minipage}
-    \hfill
-    \begin{minipage}{0.48\textwidth}
+        \caption{The null (dashed) climbs with the count alongside the observed
+        rate (solid), so the rise is not recovery. CART in blue, the matched
+        GLM in orange.}
+        \label{fig:treecount}
+    \end{minipage}\hfill
+    \begin{minipage}[t]{0.48\textwidth}
         \centering
         \includegraphics[width=\textwidth]{../figures/tree_size_detect.png}
+        \caption{With the count held at 20 the null falls to near zero while the
+        observed rate stays put, leaving the gap legible.}
+        \label{fig:treesize}
     \end{minipage}
-    \caption{The null climbs with the count (left), so the observed rise is not
-    recovery; with the count held at 20 it falls to near zero while the observed
-    rate stays put (right), leaving the gap legible. Dashed is the shuffled
-    column.}
-    \label{fig:treediag}
 \end{figure}
 
 % -------------------------------------------------------
