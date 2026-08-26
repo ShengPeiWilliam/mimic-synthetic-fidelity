@@ -9,29 +9,60 @@ Four independent measurements follow the count and none follows sample size. Div
 
 ## Motivation
 
-Synthetic data is usually evaluated with global fidelity metrics: does the synthetic table look like the real one overall? Those metrics are dominated by the common strata, which is exactly where nothing interesting happens. Rare subgroups carry little weight in the aggregate, yet they are often what clinical research is about, and they are where a generator is most likely to lose structure.
+An earlier project of mine, [Bayesian Prior Sensitivity](https://github.com/ShengPeiWilliam/bayesian-prior-sensitivity), found something on a 189-row dataset that I did not expect: the point where estimates stop being driven by the prior is set by a predictor's positive-case count, not by the sample size. Smoking, with 74 positives, settled by n=40. Hypertension, with 12, was still unstable at n=80.
 
-The harder problem is attribution. If a rare-stratum effect goes missing after synthesis, is that the generator's failure or was the effect never estimable from that many rows in the first place? Most evaluations cannot tell, because they never establish what the source data could support. This project builds the control in: every synthetic estimate is paired with a real one from the same rows, and the whole grid is read against a full-pool reference and a power calculation.
+That was one small dataset and one model family, so it was fair to ask whether the pattern was real or a quirk of `birthwt`. This project is the follow-up, and [MIMIC-IV](https://physionet.org/content/mimiciv/2.2/) is close to the ideal place to run it: 70,954 ICU stays, so a rare stratum can be built to any size on demand instead of being whatever the data happens to give.
 
-The answer is that a prior finding transfers — positive count, not sample size, sets the threshold — and that it transfers as a mechanism, not as a remedy.
+The generator is different too, which is the point. If the count threshold is a property of Bayesian logistic regression it should not show up in a CART-based synthesizer. If it does, it is a property of small strata rather than of any one method.
 
 ## Design Decisions
 
-**Why two sweeps?**
+**Exact positive counts, not random ones**
 
-At fixed `n`, raising the positive count also raises prevalence, so a single sweep cannot say which one is responsible. Fixing `k` and varying `n` moves prevalence on its own. `k` was held at 20 because that is the last count where fits still fail often enough to matter (6–17% of replicates, against 0–4% at `k = 40` and none from `k = 80` up) — sample size gets its best chance to show an effect there.
+The rare stratum is constructed, not found. Each replicate draws `k` positives and `n - k` negatives from separate pools:
 
-**Why report failure separately from spread?**
+```r
+sub <- bind_rows(
+  pos_pool[sample(nrow(pos_pool), k), ],
+  neg_pool[sample(nrow(neg_pool), n_fixed - k), ]
+)
+```
 
-A fit fails two ways: **inestimable** (the table holds no positives, the coefficient comes back `NA`) and **divergent** (the coefficient runs past |2|, a likelihood maximized at the boundary rather than a real effect). Averaging failures into the quantiles inflates apparent instability at low counts, since divergent fits push the quantiles outward, and it hides the sharpest result in the study — the common threshold at `k = 80`. Both are reported as shares of all `M` replicates, so converged + inestimable + divergent = 1.
+`k` is a controlled variable, not a random one, which is what allows a sweep over it. It has a consequence worth naming: the real subsample can never be inestimable, since it holds exactly `k` positives by construction. Only the synthetic table, which generates its own column, can come back with none.
 
-**Why a permutation null for the tree diagnostic?**
+**The shuffle preserves the marginal count, and the subtraction is what you read**
 
-"Does CART use the comorbidity as a split?" looks like a clean fidelity metric. It is not readable without a control: the same measurement on a shuffled column rises from 0.00 to 0.32 as class balance improves, because a balanced binary variable is structurally easy to split on whether or not it carries signal. Every configuration is re-run with the comorbidity column shuffled, which preserves the positive count and destroys the association.
+```r
+if (permute) sub[[comorbidity_col]] <- sample(sub[[comorbidity_col]])
+```
 
-**Why a GLM arm alongside CART?**
+Permuting within the subsample keeps the number of positives at exactly `k` and destroys only the row-level pairing with the outcome. Without that, the null would be a differently sized stratum and the comparison would mean nothing.
 
-To separate "CART cannot see this" from "nobody can see this." A likelihood-ratio test on the identical subsamples answers the same yes/no question the tree is asked. It detects the comorbidity in 2–16% of replicates throughout, no consistent gain over shuffled labels — so the null result is a property of the design, not of the generator.
+The quantity read off it is `excess = observed − permuted`: how much of the observed rate comes from information rather than from a column that is merely easy to split on. One seed, `k * 1000 + r`, drives the row draw, the synthesis and both tree fits, so the two runs are paired on identical rows and the subtraction has an exact reading:
+
+```
+excess = (only_obs − only_perm) / M
+```
+
+`only_obs` counts replicates where the real column earned a split and the shuffled one did not, `only_perm` the reverse. Replicates where both did, or neither did, cancel — they say nothing about which column is better. CHF at `k = 40`: 0.21 − 0.07 = 0.14, and (18 − 4) / 100 = 0.14.
+
+A positive excess is not by itself evidence. `binom.test(c(only_obs, only_perm))`, the exact form of McNemar's test, asks whether the imbalance between the two discordant counts beats a coin flip. At `k = 40` that is 18 against 4, p = 0.004. At `k = 250` it is 17 against 20, and the apparent recovery in the raw rate is gone.
+
+**The probe is matched to the generator, and the GLM to the probe**
+
+```r
+rpart.control(minsplit = 20, minbucket = 5, cp = 1e-08)
+```
+
+These are `synthpop::syn.cart`'s own settings, so the diagnostic tree reflects what the generator does rather than a more permissive stand-in. It is still a proxy: three predictors instead of the full feature set, and no sequential visit order.
+
+The logistic arm is matched the same way. Its likelihood-ratio test drops the comorbidity and its interaction together, so it answers the tree's question — does this variable earn a place at all — instead of a different one. That is what separates "this generator misses the effect" from "nothing could find it at this size."
+
+**Two thresholds, two denominators**
+
+|2| is not a general cutoff, it is 40x the full-pool estimate of ~0.05. Everything is recomputed at 5 and 10 and every comparison points the same way.
+
+Failure rates are shares of all `M` replicates, so converged + inestimable + divergent = 1. Quantiles use converged fits only. Two denominators in the same table, stated explicitly because mixing them is the easiest mistake to make here.
 
 ## Key Results
 
