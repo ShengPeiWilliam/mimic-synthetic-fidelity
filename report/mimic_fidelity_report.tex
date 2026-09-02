@@ -39,21 +39,20 @@ separate count from prevalence.
 The threshold does carry over, but the generator adds none of its own. Raising
 $k$ drives divergence to zero between counts of forty and eighty, and over a
 matched eightfold increase it cuts interquartile width by 42 to 66\% in all six
-series, while the same increase in $n$ moves neither. Neither the real arm's
-divergence rate nor a logistic fit to the same subsamples involves the
-synthesizer at all, so the threshold belongs to the stratum and
-\texttt{synthpop} inherits it rather than imposing a second one. What synthesis
-contributes instead is a bias no count removes: in a companion simulation with a
-known data-generating process, the synthetic median recovers 99\% of a true
-interaction of 0.5 but only 41\% of one of 3. The finding transfers as a
-mechanism and not as a remedy.
+series, while the same increase in $n$ moves neither. The real arm's divergence
+rate and a logistic fit to the same subsamples never involve the synthesizer, so
+the threshold belongs to the stratum and \texttt{synthpop} inherits it rather
+than imposing a second one. Synthesis adds a bias of its own that no count
+removes: in a companion simulation with a known truth, the synthetic median
+recovers 99\% of an interaction of 0.5 but only 41\% of one of 3. The finding
+transfers as a mechanism and not as a remedy.
 
 A 500-row subsample carries 6 to 7\% power against the interactions MIMIC-IV
 offers, and the smallest one it could detect is seven to twelve times the one
-actually present. Two recommendations follow: establish that a target effect is estimable in the
-source data before attributing any discrepancy to the generator, and calibrate
-variable-selection diagnostics against a permutation null. That null moves from
-0.00 to 0.32 with class balance alone.
+present. Two recommendations follow: establish that a target effect is estimable
+in the source data before attributing any discrepancy to the generator, and
+calibrate variable-selection diagnostics against a permutation null, which here
+moves from 0.00 to 0.32 with class balance alone.
 \end{abstract}
 
 % -------------------------------------------------------
@@ -64,18 +63,18 @@ That a logistic fit's precision is set by the event count is established
 characterised since \cite{albert1984}. In earlier coursework I found the same
 under Bayesian logistic regression on the \texttt{birthwt} dataset: posterior
 stability depends on a predictor's positive-case count rather than on overall
-sample size. What is not established is whether the same threshold governs a
+sample size. Nobody has shown whether the same threshold governs a
 \emph{generator}. Whether a CART-based synthesizer preserves a rare-stratum
 interaction is a question about which variables a tree spends a split on, not
 about the curvature of a likelihood, and the two need not share a threshold.
 
-Synthetic data is proposed as a way to share clinical records without exposing
-patients, and is usually judged by general utility, how closely the synthetic
-joint distribution resembles the real one \cite{snoke2018}. A generator can
-score well on that and still lose the one coefficient a study was designed
-around, so what follows holds the generator fixed and measures a single
-interaction rather than overall similarity. The question matters because of a
-specific misreading. A researcher handed a synthetic release of MIMIC-IV,
+Synthetic data shares clinical records without exposing patients, and is usually
+judged by general utility, how closely the synthetic joint distribution
+resembles the real one \cite{snoke2018}. A generator can score well on that and
+still lose the one coefficient a study was designed around, so what follows
+holds the generator fixed and measures a single interaction rather than overall
+similarity. It matters because of a specific misreading. A researcher handed a
+synthetic release of MIMIC-IV,
 finding the CHF by creatinine interaction absent from it, would reasonably
 conclude that the synthesizer had destroyed a clinical interaction. In the 500
 rows in front of them that effect was never detectable to begin with, and the
@@ -89,48 +88,46 @@ Code is available at
 \subsection{Cohort}
 
 The cohort is MIMIC-IV v2.2 \cite{johnson2023}, restricted to hospital
-admissions with an associated ICU stay, one row per stay. Dropping the 3\% of
-stays with no first-day creatinine leaves a pool of 70{,}954 from which all
-subsampling draws. In-hospital mortality in the pool is 10.9\%, so a 500-row
-draw carries roughly 54 deaths against the five parameters each fit estimates.
-
-Two features bound what the pool can serve as a reference for, and both land on
-the full-pool estimate rather than on the sweeps. The dropped stays are not
-missing at random, being far shorter and more than twice as often fatal, so the
-reference is the interaction among stays that survived long enough to be
-measured. And rows repeat patients, so full-pool standard errors are clustered
-(Table~\ref{tab:fullpool}). The sweep comparison is untouched by both, drawing
-its two arms from the same pool.
+admissions with an associated ICU stay, one row per stay. Dropping the 3\% with
+no first-day creatinine leaves a pool of 70{,}954, from which all subsampling
+draws. That 3\% is not a random slice: a stay ending within hours has no time
+for the lab draw, so the pool leans toward stays that lasted long enough to be
+measured. The rows that remain repeat patients, so standard errors on the
+full-pool estimate are clustered.
 
 \subsection{Variables}
 
 Three predictors enter every fit: age, first-day maximum creatinine, and one
 comorbidity flag. Comorbidities are simplified ICD-9/ICD-10 prefix flags rather
-than a validated index such as Elixhauser or Charlson, since the sweeps need a
-binary flag with a known positive count. The three least prevalent of the five
-screened were carried forward, COPD, CHF and Diabetes, running 11 to 30\%
-positive in the pool; even the rarest is too common to supply a thin stratum on
-its own, so the rare stratum is manufactured by subsampling rather than found in
-the data. Creatinine is capped at the 99.5th percentile and left untransformed,
-so every creatinine coefficient below is per mg/dL. The notebook carries the
-screening table and the variable distributions.
+than a validated index such as Elixhauser or Charlson, since the design needs a
+known positive count. The three least prevalent of the five screened were
+carried forward: COPD (11\%), CHF (28\%) and Diabetes (31\%). Even the rarest is
+too common to supply a thin stratum, so it is manufactured by subsampling.
+Creatinine is capped at the 99.5th percentile and left untransformed, so every
+creatinine coefficient below is per mg/dL.
 
 % -------------------------------------------------------
 \section{Methods}
 
 \subsection{Experimental Design}
 
-Both sweeps draw stratified subsamples, synthesize each with
-\texttt{synthpop::syn()} \cite{nowok2016}, and fit
+Both sweeps draw stratified subsamples and synthesize each with
+\texttt{synthpop::syn()} \cite{nowok2016}. One model is fitted to the real
+subsample and again to the synthetic table, giving paired estimates
+$\hat\beta_{\text{real}}$ and $\hat\beta_{\text{syn}}$ of the interaction at
+$M = 100$ Monte Carlo replicates per grid point:
 \[
 \texttt{hospital\_expire\_flag} \sim \texttt{age} + \texttt{creatinine} + \texttt{comorbidity} + \texttt{comorbidity}{:}\texttt{creatinine}
 \]
-to both the real subsample and the synthetic table, giving paired
-estimates $\hat\beta_{\text{real}}$ and $\hat\beta_{\text{syn}}$ of the
-interaction, at $M = 100$ Monte Carlo replicates per grid point. The size sweep
-holds the count at 20, the last value at which it still binds, so that if
-sample size can substitute for count this is where it would show
-(Table~\ref{tab:design}).
+
+The distance between the two estimates is the fidelity measure, and the same
+subsamples carry over to the tree diagnosis, so one draw supports both analyses
+in Section~\ref{sec:analyses}. Both arms come from the same subsample, so the pool's
+selection cancels in the comparison. Each sweep holds one input fixed and varies the other (Table~\ref{tab:design}).
+The count sweep moves prevalence along with the count; the size sweep moves
+prevalence alone, holding the count at 20, where the interaction draws its
+information mostly from the positive stratum and rests on the deaths inside
+twenty rows however large the subsample grows around them.
 
 \begin{table}[H]
 \centering
@@ -152,46 +149,42 @@ Throughout, a \emph{series} is one comorbidity in one arm, six in all, and a
 \emph{cell} is one series at one grid point.
 
 \subsection{Analyses}
+\label{sec:analyses}
 
 Two analyses run on every grid point. The first compares
 $\hat\beta_{\text{real}}$ against $\hat\beta_{\text{syn}}$ on the median and
-interquartile width of the converged estimates, with the divergence and
-inestimable rates kept separate; Section~\ref{sec:failure} defines the two ways
-a fit fails. Throughout, the synthetic arm is fitted the way a data recipient
-would fit it: one synthetic copy, an ordinary GLM.
-
-The second is a tree diagnosis. It refits the subsamples both sweeps draw
-with \texttt{rpart}, under the control parameters
-\texttt{synthpop::syn.cart} uses, and records whether the comorbidity earns a
-split. That is read against a likelihood-ratio test on the same rows, dropping
-the comorbidity and its interaction together, so both are asked the same
-question. Every configuration is re-run with the
-comorbidity column shuffled, which leaves the positive count intact and destroys
-its association with the outcome, supplying the null.
+interquartile width of the converged estimates, and on how often a fit fails at
+all (Section~\ref{sec:failure}). The synthetic arm is fitted the way a data
+recipient would fit it: one synthetic copy, an ordinary GLM.
+The second refits the same subsamples with \texttt{rpart} under
+\texttt{synthpop::syn.cart}'s control parameters and records whether the
+comorbidity earns a split; a likelihood-ratio test dropping the comorbidity and
+its interaction asks a GLM the same question. Every configuration is re-run with
+the comorbidity shuffled, which holds the positive count fixed but destroys its
+link to the outcome, giving the null.
 
 \subsection{Two Failure Modes}
 \label{sec:failure}
 
 Fits at the smallest counts fail often enough that the rates are reported as a
-result rather than used as a filtering step. A fit is \textbf{inestimable} when
-the table holds no positives and the interaction returns \texttt{NA};
-\textbf{divergent} when the term is estimated but runs past $|2|$, forty times
-the full-pool estimate, marking a likelihood maximized at the boundary
-\cite{heinze2002}. Only divergence appears in the real arm, which holds exactly
-$k$ positives by construction; the synthetic table generates its own column and
-can produce none.
+result, not used as a filter. They fail in two ways. The first is
+\textbf{inestimable}: the table holds no positives, so the interaction returns
+\texttt{NA}. The second is \textbf{divergent}: the term is returned but runs
+past $|2|$, forty times the full-pool estimate, marking a likelihood maximized
+at the boundary \cite{heinze2002}.
 
-Rates are shares of all $M$ replicates, so converged, inestimable and divergent
-sum to one; every quantile below uses converged fits only.
+Only the second appears in the real arm, which holds exactly $k$ positives by
+construction, while the synthetic table generates its own column and can come
+back empty. Rates are shares of all $M$ replicates, so converged, inestimable
+and divergent sum to one, and every quantile below uses converged fits only.
 
 \subsection{The Full-Pool Reference}
 
-MIMIC-IV carries no known ground truth, so the interaction fit on the whole
-pool stands in as the reference, $\hat\beta_{\text{full}}$, and every subsample
-estimate is read against it (Table~\ref{tab:fullpool}). The three interactions
-differ in sign, CHF and Diabetes dampening creatinine's main effect while COPD
-steepens it, and all three are roughly three to four times smaller than that
-main effect.
+MIMIC-IV carries no known ground truth, so the interaction fit on the whole pool
+stands in as the reference, $\hat\beta_{\text{full}}$, and every subsample
+estimate is read against it. All three are real, differ in sign, and run roughly
+three to four times smaller than the creatinine slope they modify
+(Table~\ref{tab:fullpool}).
 
 \begin{table}[H]
 \centering
@@ -204,8 +197,8 @@ Diabetes & 0.234 & $-0.0709$ & 0.0145 & $1.1\times10^{-6}$ \\
 COPD     & 0.188 & $+0.0668$ & 0.0232 & $4.0\times10^{-3}$ \\
 \bottomrule
 \end{tabular}
-\caption{Comorbidity by creatinine interaction on the full pool. Standard
-errors clustered on patient.}
+\caption{The interaction on the full pool, against the creatinine slope it
+modifies. Standard errors clustered on patient.}
 \label{tab:fullpool}
 \end{table}
 
@@ -213,37 +206,53 @@ errors clustered on patient.}
 \subsection{What This Design Can and Cannot Resolve}
 \label{sec:scope}
 
-The reference also bounds what the subsamples can show. At $n = 500$ the
-smallest interaction detectable at 80\% power is 0.47 to 0.78, against the 0.050
-to 0.071 the pool actually holds, seven to twelve times too coarse; reaching
-those effects would need roughly 23{,}000 to 67{,}000 rows.
+The subject here is what a generator does to a small subsample, so $n$ is set by
+the question rather than by what the data could support. Measuring what that
+choice costs is what fixes the scale everything below is read on. At $n = 500$
+the smallest interaction detectable at 80\% power runs seven to twelve times the
+one the pool holds (Table~\ref{tab:floor}), and reaching these effects would
+take most of the pool.
 
-No subsample of the size studied here can therefore say whether synthesis
-recovers a true interaction. That is a trade rather than a concession. What the
-two sweeps measure instead is precision and failure behaviour, how wide the
-estimates run and how often a fit cannot be produced at all, and both are
-readable at any effect size, including one too small to detect. Every claim
-about bias rests on the simulation of Section~\ref{sec:sim}, where the truth is
-known and large enough to reach.
+\begin{table}[H]
+\centering
+\begin{tabular}{lrrr}
+\toprule
+Comorbidity & Smallest $|\beta|$ detectable & Factor & Rows needed \\
+\midrule
+CHF      & 0.47 & 9.5$\times$  & 45{,}000 \\
+Diabetes & 0.49 & 6.8$\times$  & 23{,}000 \\
+COPD     & 0.78 & 11.6$\times$ & 67{,}000 \\
+\bottomrule
+\end{tabular}
+\caption{The detection floor at 80\% power. An interaction must reach the first
+column before a 500-row subsample finds it four times in five; the factor
+compares that threshold with $\hat\beta_{\text{full}}$ in
+Table~\ref{tab:fullpool}.}
+\label{tab:floor}
+\end{table}
+
+No subsample this size can say whether synthesis recovers a true interaction, so
+the sweeps do not ask. They measure precision and failure behaviour, readable at
+any effect size, and leave bias to a companion simulation where the truth is
+known (Section~\ref{sec:sim}).
 
 % -------------------------------------------------------
 \section{Results}
 
 \subsection{Count, Not Sample Size, Removes Divergence}
 
-\paragraph{Count sweep.}
-Divergence runs at 18 to 40\% at $k = 5$ and every series is at zero by $k = 80$
-(Figure~\ref{fig:nonconv}, left),
-though not at one shared count: two are already there at $k = 40$, and a zero
-over 100 replicates bounds a rate at 3.6\% rather than establishing it as nil,
-so the threshold sits in $(40, 80]$ for each series. Neither prevalence nor the
-sign of the interaction moves it.
+\paragraph{Count sweep: divergence stops by a count of eighty.}
+Divergence runs at 18 to 40\% at $k = 5$ and every series is at zero by $k = 80$.
+Not at one shared count: two are there already
+at $k = 40$, and a zero over 100 replicates bounds a rate at 3.6\% rather than
+proving it nil, so the threshold sits in $(40, 80]$ for each series. Neither
+prevalence nor the sign of the interaction moves it.
 
-\paragraph{Size sweep.}
-No sample size does the same. Over a matched eightfold increase in $n$ no series
-comes near zero (Figure~\ref{fig:nonconv}, right). What separates cleanly here is the arm rather than the size:
-the synthetic rate is the higher of the two in fourteen of the fifteen
-comorbidity-by-size comparisons, and no sample size closes the gap.
+\paragraph{Size sweep: divergence never stops.}
+No sample size does the same. Over a matched eightfold increase in $n$ divergence
+stays between 2 and 24\% and no series reaches zero. The arm separates cleanly
+here and the size does not: the synthetic rate is higher in fourteen of the
+fifteen comorbidity-by-size comparisons, and no sample size closes the gap.
 
 \begin{figure}[H]
     \centering
@@ -256,39 +265,34 @@ comorbidity-by-size comparisons, and no sample size closes the gap.
         \centering
         \includegraphics[width=\textwidth]{../figures/size_divergence.png}
     \end{minipage}
-    \caption{Divergence falls away under the count (left) and not under the
-    sample size (right); note the differing vertical scales. The two smallest
-    counts are detection floors.}
+    \caption{Left, the count sweep: divergence falls away. Right, the size
+    sweep: it does not. Common scale; the two smallest counts understate the
+    true rate.}
     \label{fig:nonconv}
 \end{figure}
 
-\paragraph{Detection floor.}
-The $|2|$ cutoff understates divergence at the smallest counts. A penalized fit
-\cite{firth1993} finds 64 to 76\% of real fits separated at $k = 5$ where $|2|$
-flags 18 to 34\%, because \texttt{glm} stops after twenty-five iterations rather
-than running to the boundary. The two agree from $k = 20$ up, and the penalized
-fit removes the divergence without moving the count at which it stops. What the
-cutoff mismeasures is how bad the smallest counts are, not where failure ends.
+\paragraph{Checking the $|2|$ rule.}
+The $|2|$ threshold is one this study set, not one the data supplies, so it is
+checked against a separation test. It understates divergence at the smallest
+counts: a penalized fit \cite{firth1993} finds 64 to 76\% of real fits separated
+at $k = 5$ where $|2|$ flags 18 to 34\%. The two agree from $k = 20$ up, and the
+penalized fit does not move the count at which divergence stops. The rule
+mismeasures how bad the smallest counts are, not where failure ends.
 
 \subsection{The Count Narrows the Spread; the Sample Size Does Not}
 
-\paragraph{Count sweep.}
-Spread narrows steadily with the count, every series losing 55 to 69\% of its
-width from $k = 20$ to $k = 250$. It is still not enough: the narrowest cell has
-an interquartile width of 0.194 against its reference of 0.0497
+\paragraph{Count sweep: the count narrows it, and it is still four times too wide.}
+Every series loses 55 to 69\% of its width from $k = 20$ to $k = 250$. The
+narrowest cell still runs 0.194 wide against a reference of 0.0497
 (Table~\ref{tab:fullpool}), nearly four times the quantity being estimated. What
-low counts cost is precision and not location, the middle half of the estimates
-still containing $\hat\beta_{\text{full}}$ in 39 of the 42 cells
-(Figure~\ref{fig:ribbon}, left).
+low counts cost is precision and not location: the middle half of the estimates
+still contains $\hat\beta_{\text{full}}$ in 39 of the 42 cells.
 
-\paragraph{Size sweep.}
-Over the matched eightfold window, $k$ from 20 to 150 against $n$ from 500 to
-4000, the count cuts width by 42 to 66\% in all six series while the sample size
-changes it by between $-19\%$ and $+10\%$ with no consistent sign
-(Figure~\ref{fig:ribbon}, right); the count's figure falls below the 55 to 69\%
-above only because this window stops at $k = 150$. Across the full sixteen-fold
-range of $n$ the widths never leave the band the count sweep recorded at
-$k = 20$.
+\paragraph{Size sweep: no sample size narrows it.}
+Over a matched eightfold window, $n$ from 500 to 4000 against $k$ from 20 to
+150, the sample size moves width between $-19\%$ and $+10\%$ with no consistent
+sign, while the count over that shorter window still cuts it by 42 to 66\% in
+all six series.
 
 \begin{figure}[H]
     \centering
@@ -301,48 +305,42 @@ $k = 20$.
         \centering
         \includegraphics[width=\textwidth]{../figures/size_ribbon.png}
     \end{minipage}
-    \caption{The count narrows the spread (left) and the sample size does not
-    (right), on a common scale. Distance from $\hat\beta_{\text{full}}$; band is
-    the middle 50\% of converged fits.}
+    \caption{Left, the count sweep: the spread narrows. Right, the size sweep:
+    it does not. Common scale, plotted as distance from
+    $\hat\beta_{\text{full}}$; band is the middle 50\% of converged fits.}
     \label{fig:ribbon}
 \end{figure}
 
-\paragraph{What the count rate explains.}
-An interaction's variance scales as $1/k + 1/(n-k)$, and that rate accounts for
-both panels. Rescaling the $k = 250$ width by it tracks the real arm at 0.97
-across the count sweep; with $k$ held at 20 the $1/k$ term cannot move, so it
-predicts widths within 4\% across the whole size range, against observed scatter
-several times that in both directions. What it does not account for is the
-synthetic arm, which sits below the real one and spreads wider than its own
-count predicts: the same rescaling puts it at 1.14, higher than the real arm at
-every one of the nine matched cells (Figure~\ref{fig:ratio}; sign test
-$p = 0.004$).
+\paragraph{The rate explains the real arm, not the synthetic one.}
+An interaction's variance scales as $1/k + 1/(n-k)$. Rescaled by that rate the
+real width tracks at 0.97, and under the size sweep the rate predicts almost no
+change, which is what the data shows. The synthetic arm sits above it at 1.14,
+wider than the real arm in all nine comorbidity-by-count comparisons
+(Figure~\ref{fig:ratio}; sign test $p = 0.004$).
 
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.45\textwidth]{../figures/width_vs_theory.png}
     \caption{The real arm tracks the width its count predicts; the synthetic
-    arm sits above the real one in all nine matched cells.}
+    arm sits above the real one in all nine comparisons.}
     \label{fig:ratio}
 \end{figure}
 
-\paragraph{A sign that sample size does not repair.}
-Width is not the only thing sample size fails to fix. COPD is the one
-comorbidity whose interaction is positive, $+0.0668$, and the count sweep
-recovers that sign once $k$ passes 20. Holding the count at 20 does
-not: the synthetic median is negative at all five sample sizes, from
-$-0.077$ to $-0.159$, matching the $-0.177$ recorded by the count sweep at the
-same count. Sixteen times the data leaves the sign where twenty positives
-put it.
+\paragraph{A sign the sample size does not repair.}
+COPD is the one comorbidity whose interaction is positive, $+0.0668$, and the
+count sweep recovers that sign once $k$ passes 20. Holding the count at 20 does
+not: the synthetic median stays negative at all five sample sizes, $-0.077$ to
+$-0.159$. Sixteen times the data leaves the sign where twenty positives put
+it.
 
-\subsection{What No Count Fixes: Attenuation Under a Known Truth}
+\subsection{Synthesis Attenuates the Interaction, and No Count Repairs It}
 \label{sec:sim}
 
-As Section~\ref{sec:scope} set out, MIMIC-IV offers no truth to compare
-against and no power to reach one. A companion simulation supplies both: a population is
-generated from a logistic model with a known \texttt{chf}\,$\times$\,lactate
-interaction, and the same count sweep is run at three true values, 200
-replicates per cell.
+Where MIMIC-IV has no truth to compare against, a simulated population does. It
+is generated from a logistic model with a known
+\texttt{chf}\,$\times$\,lactate interaction, then put through the same pipeline:
+a subsample drawn at each count, synthesized, and both arms fitted as before.
+The three true values sit well above the floor of Section~\ref{sec:scope}.
 
 \begin{table}[H]
 \centering
@@ -362,21 +360,23 @@ are the median of $|\hat\beta - \text{true}|$ over replicates.}
 \label{tab:sim}
 \end{table}
 
-Synthesis loses more of the interaction the larger it is. At a true value of
-3 the real arm recovers 2.75 and the synthetic arm 1.22 (Table~\ref{tab:sim}),
-and no count on the grid closes that gap (Figure~\ref{fig:simmedian}). The row at 0.5 is not the exception
-it looks like: an estimator that pulls toward zero is accurate against any
-target near zero, and the error columns show the difference the medians hide,
-34\% larger on the synthetic side where the two medians agree to within 1\%.
+\paragraph{The larger the interaction, the more is lost.}
+Synthesis keeps 99\% of a true value of 0.5, 59\% of 1.5 and 41\% of 3
+(Table~\ref{tab:sim}), and no count on the grid closes the gap
+(Figure~\ref{fig:simmedian}). The row at 0.5 is not the exception it looks like:
+an estimator that pulls toward zero is accurate against any target near zero,
+and the error columns show what the medians hide, 34\% larger on the synthetic
+side where the medians agree to within 1\%.
 
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.45\textwidth]{../figures/sim_median.png}
     \caption{The real arm converges on the truth; the synthetic arm lags at
-    every count. Dashed line is the true value.}
+    every count.}
     \label{fig:simmedian}
 \end{figure}
 
+\paragraph{The synthetic arm diverges less, not more.}
 At a true value of 3 the real arm diverges in 21 to 29\% of replicates while the
 synthetic arm diverges in 2.5 to 10.5\%, the reverse of the MIMIC-IV pattern. A
 strong interaction puts the real subsample close to separation; the tree smooths
@@ -388,102 +388,97 @@ wrong value. The attenuation is bought, not incurred.
 What looks like recovery in the count sweep is class balance, not signal. The
 diagnostic rises from 0 at $k = 5$ to 0.26 to 0.40 at $k = 250$, but the
 permutation null rises with it, to as high as 0.32
-(Figure~\ref{fig:treecount}), since what grows alongside the count is the
-balance of the column itself, from 1\% positive to 50\%, and a balanced binary
-variable is easy to split on whether or not it carries signal
-\cite{strobl2007}. Pooled across the grid the signal is still there. A
-conditional logistic model, \texttt{used \textasciitilde{} observed +
-observed:log2k\_c + strata(pair)}, stratified on (comorbidity, replicate) pairs
-with $\log_2 k$ centred at $k = 40$, puts the real column ahead of the shuffled
-one by an odds ratio of 2.0 ($p = 6\times10^{-6}$), narrowing by 0.81 per
-doubling of the count ($p = 0.015$) as the null closes in.
+(Figure~\ref{fig:tree}, left): the column grows from 1\% positive to 50\%, and a
+balanced binary variable is easy to split on whether or not it carries signal
+\cite{strobl2007}. Pooled across the grid the signal is still there, an odds
+ratio of 2.0 ($p = 6\times10^{-6}$) from a conditional logistic model stratified
+on (comorbidity, replicate) pairs, narrowing by 0.81 per doubling of the count
+($p = 0.015$) as the null closes in.
 
-Holding the count at 20 runs class balance the other way, down to 0.5\% positive
-at $n = 4000$. The null falls with it to near zero while the observed rate stays
-where the count sweep left it (Figure~\ref{fig:treesize}), and with the null out
-of the way the signal is legible without pooling: the real column wins 104
-discordant replicates to 32. The diagnostic is readable where its null is near
-zero, which on this data means low prevalence.
+Holding the count at 20 runs balance the other way, down to 0.5\% positive at
+$n = 4000$. The null falls with it to near zero while the observed rate stays
+put (Figure~\ref{fig:tree}, right), and with the null out of the way the signal
+is legible without pooling: 104 discordant replicates to 32. The diagnostic is
+readable where its null is near zero, which here means low prevalence.
 
 \begin{figure}[H]
     \centering
-    \begin{minipage}[t]{0.48\textwidth}
+    \begin{minipage}{0.48\textwidth}
         \centering
         \includegraphics[width=\textwidth]{../figures/tree_count_detect.png}
-        \caption{The null (dashed) climbs with the count alongside the observed
-        rate (solid), so the rise is not recovery. CART in blue, the matched
-        GLM in orange.}
-        \label{fig:treecount}
     \end{minipage}\hfill
-    \begin{minipage}[t]{0.48\textwidth}
+    \begin{minipage}{0.48\textwidth}
         \centering
         \includegraphics[width=\textwidth]{../figures/tree_size_detect.png}
-        \caption{With the count held at 20 the null falls to near zero while the
-        observed rate stays put, leaving the gap legible.}
-        \label{fig:treesize}
     \end{minipage}
+    \caption{Both arms here are real; dashed is the same column shuffled. Left,
+    the count sweep: the null climbs alongside the observed rate, so the rise is
+    not recovery. Right, the size sweep: the null falls away and the observed
+    rate stays put.}
+    \label{fig:tree}
 \end{figure}
 
 % -------------------------------------------------------
 \section{Discussion}
 
 \paragraph{The design, not the generator.}
-The floor set out in Section~\ref{sec:scope} is what the sweeps returned. Theory
-gives a 500-row subsample 6 to 7\% power against these interactions and the GLM
-arm returned 6.7 to 10.1\%, both within a few points of the 5\% a powerless test
-would produce; the two landing together rules out a defect in the pipeline and
-locates the failure in the design. Nor
-does either sweep implicate CART on its own, since the GLM does no better on
-real labels than on shuffled ones; CART is only the method that fails visibly,
-by declining to spend a split.
+The sweeps returned the floor of Section~\ref{sec:scope}. Theory gives a 500-row
+subsample 6 to 7\% power against these interactions and the GLM arm returned
+6.7 to 10.1\%, both within a few points of the 5\% a powerless test would
+produce, which locates the failure in the design and not in the pipeline.
+Neither sweep implicates CART on its own: the GLM does no better on real labels
+than on shuffled ones, and CART is only the method that fails visibly, by
+declining to spend a split.
 
 \paragraph{A threshold, but not a cutoff.}
-The count at which divergence stops is not one number: it sits in $(40, 80]$ for
-each series but lands at different points inside that window. That is the
-expected shape rather than a ragged result, since van Smeden et al.\ find no
-rationale for a fixed events-per-variable criterion \cite{vansmeden2016}. What
-transfers to a generator is a dependence on the count, not a universal cutoff.
+The count at which divergence stops sits in $(40, 80]$ for each series, but at
+different points inside. That is the expected shape, not a ragged result, since
+van Smeden et al.\ find no rationale for a fixed events-per-variable criterion
+\cite{vansmeden2016}. A generator inherits a dependence on the count, not a
+universal cutoff.
+
+\paragraph{Three readings that disagree.}
+Failure, spread and location do not move together. The synthetic arm spreads
+wider than its own count predicts and sits below the truth, yet at a large true
+effect it fails less often than the real one. Read on its own that last reading
+looks like stability, and stability is what the smoothing buys.
 
 \paragraph{A privacy-fidelity tension.}
-CART's reluctance to isolate a subgroup with few supporting cases is not simply
-a limitation to work around. A tree willing to carve out a node of five patients
-would also be likelier to overfit to, and risk re-identifying, them, and that
-same reluctance leaves the stratum missing from the synthetic table at $k = 5$.
-The tension is a property of the method, not an implementation defect, though
-only its fidelity side is measured here.
+CART's reluctance to isolate a subgroup with few supporting cases is not simply a
+limitation to work around. A tree willing to carve out a node of five patients
+would also be likelier to overfit to and risk re-identifying them, and that same
+reluctance leaves the stratum missing at $k = 5$. The tension belongs to the
+method, not the implementation, though only its fidelity side is measured
+here.
 
 \paragraph{Limitations.}
 The diagnostic tree is a proxy for the generator: three predictors rather than
 the full feature set \texttt{synthpop} synthesizes jointly, matched on control
-parameters but not on its sequential visit order. Both are permissive, which
-makes non-selection the more reliable outcome. Monte Carlo error at $M = 100$
-reaches 13\% on interquartile widths, so a cell that misses significance is not
-evidence that nothing is there. The single-copy GLM on the synthetic side
-carries no correction for the variance synthesis contributes; proper inference
-uses several copies and a combining rule \cite{raab2016}, so the two arms are
-compared as procedures in use rather than as matched estimators. One continuous
-variable and one outcome were examined, two of the five screened comorbidities
-were left unanalysed, the pool excludes the short, high-mortality stays that
-carry no first-day creatinine, and all results come from a single MIMIC-IV
-snapshot.
+parameters but not on visit order. Both are permissive, which makes
+non-selection the more reliable outcome. Monte Carlo error at $M = 100$ reaches
+13\% on interquartile widths, so a cell that misses significance is not evidence
+that nothing is there. The single-copy GLM carries no correction for the
+variance synthesis contributes \cite{raab2016}, so the two arms are compared as
+procedures in use, not as matched estimators. One continuous variable and one
+outcome were examined, two of the five screened comorbidities were left
+unanalysed, and all results come from a single MIMIC-IV snapshot.
 
 % -------------------------------------------------------
 \section{Conclusion}
 
-The positive count governs every quantity the two sweeps measure and sample
-size governs none: divergence falls to zero between counts of forty and eighty, interquartile
-width falls by 42 to 66\% over a matched increase in the count, and neither CART's
-use of the comorbidity nor a logistic fit to the same subsamples moves with $n$.
-These are four readings on the same replicates rather than four independent
-confirmations, but two of them come from data the synthesizer never touched. In
-that narrow sense the finding from Bayesian logistic regression does extend to
-CART-based synthesis.
+The positive count governs every quantity the two sweeps measure and sample size
+governs none: divergence falls to zero between counts of forty and eighty,
+interquartile width falls by 42 to 66\% over a matched increase in the count, and
+neither CART's use of the comorbidity nor a logistic fit to the same subsamples
+moves with $n$. These are four readings on the same replicates rather than four
+independent confirmations, but two of them never touch the synthesizer. In that
+narrow sense the finding from Bayesian logistic regression extends to CART-based
+synthesis.
 
-What does not extend is a remedy. The generator adds an attenuation no count
-removes, and the simulation shows it partial even where the target is large
-enough to reach. At clinical effect sizes neither arm recovers the
-MIMIC-IV interactions at all, the narrowest cell still spanning nearly four
-times the quantity being estimated.
+The remedy does not carry over. The generator adds an attenuation no count
+removes, partial even where the target is large enough to reach, and at clinical
+effect sizes neither arm recovers the MIMIC-IV interactions at all: the narrowest
+cell still spans nearly four times the quantity being estimated.
 
 For synthetic data evaluation, two things follow: establish that the target
 effect is estimable in the source data before attributing a discrepancy to the
