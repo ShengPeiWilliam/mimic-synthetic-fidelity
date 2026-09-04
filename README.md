@@ -72,5 +72,3 @@ The three notebooks are independent, each reading from SQL, so they run in any o
 MIMIC-IV is not included and requires PhysioNet credentialed access. Point `DATA_DIR` in `config.R` at a local copy; the notebooks read the `.csv.gz` files directly with DuckDB. `EXPLODE_THRESHOLD` sits in the same file, and is the `|2|` divergence cutoff the report checks against a penalized fit.
 
 **Stack**: R with synthpop, rpart, logistf, detectseparation, sandwich, survival, lmtest, duckdb, dplyr, ggplot2
-
-Full reference list in the [report](report/mimic_fidelity_report.pdf).
