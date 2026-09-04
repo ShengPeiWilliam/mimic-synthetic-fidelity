@@ -3,24 +3,26 @@
 
 CART-based synthesis (`synthpop`) on MIMIC-IV (n=70,954 ICU stays). Does fidelity inside a rare stratum depend on the stratum's positive count, or on the size of the table it sits in? Two sweeps hold the generator fixed and vary one input each: the positive count `k`, or the sample size `n`.
 
+The quantity throughout is one coefficient: how a comorbidity bends the creatinine slope on in-hospital mortality, for CHF, Diabetes and COPD in turn.
+
 **The count governs everything the sweeps measure; the sample size governs none of it. But the generator adds no threshold of its own. What it adds is an attenuation no count removes.**
 
 An earlier project, [Bayesian Prior Sensitivity](https://github.com/ShengPeiWilliam/bayesian-prior-sensitivity), found the same count dependence in Bayesian logistic regression. That a logistic fit's precision follows the event count is not new; it is the events-per-variable literature. What is not established is whether the same threshold governs a **generator**, which is a question about which variables a tree spends a split on, not about the curvature of a likelihood.
 
 ## What the sweeps found
 
-Matched at roughly eightfold, three comorbidities × two arms:
+Matched at roughly eightfold, across three comorbidities. The first two rows cover both arms; the last two are the real arm only.
 
 | | count: k 20 → 150 | size: n 500 → 4000 |
 |---|---|---|
-| Divergence | 6 to 17% to **zero** | stays at 2 to 24%, never zero |
+| Divergence | 6 to 17%, then **zero** | stays at 2 to 24%, never zero |
 | Interquartile width | **42 to 66% narrower** | −19% to +10%, no consistent sign |
 | CART uses the comorbidity | 26 to 40% at k=250 | 4 to 14% at every n |
-| GLM detection | not applicable | 2 to 16%, no trend in n |
+| GLM detection | 7 to 10%, against a theoretical 6 to 7% | 2 to 16%, no trend in n |
 
 Four readings on the same replicates, so not four independent confirmations, but two of them never touch the synthesizer. The threshold is series-dependent, somewhere in (40, 80].
 
-None of this settles whether synthesis recovers the truth: a 500-row subsample carries 6 to 7% power against these interactions, and the smallest effect it could detect is seven to twelve times the one present.
+None of this settles whether synthesis recovers the truth: a 500-row subsample cannot resolve these interactions, and the smallest effect it could detect is seven to twelve times the one present.
 
 ## What synthesis costs
 
@@ -36,8 +38,9 @@ The 0.5 row is **not** evidence that small interactions survive. An estimator th
 
 **Attenuation is bought, not incurred.** At a true value of 3 the real arm diverges in 21 to 29% of replicates and the synthetic arm in 2.5 to 10.5%, the reverse of the MIMIC-IV pattern. The tree smooths away the near-separation, so the synthetic fit converges more readily, and converges on the wrong value.
 
-## Two things that would mislead
+## Three things that would mislead
 
+- **Blaming the generator too early.** An effect that was never detectable in the source data is absent from the synthetic copy too, and the gap looks like the generator's doing.
 - **A split diagnostic without a null.** "Does the generator use variable X" reads as recovery across the count sweep, but the permutation null climbs from 0.00 to 0.32 alongside it, driven by class balance alone.
 - **Stability as reassurance.** The synthetic arm diverging *less* is not better behaviour; it is the effect having been smoothed away.
 
@@ -59,10 +62,14 @@ code/
   ├── sql/                               # MIMIC-IV queries, loaded via read_sql()
   └── config.example.R                   # template, copy to config.R for local DATA_DIR
 figures/                                 # report figures, written by the notebooks
-report/mimic_fidelity_report.tex         # full writeup
+report/
+  ├── mimic_fidelity_report.tex          # full writeup
+  └── proposal.tex                       # original proposal
 ```
 
-MIMIC-IV is not included and requires PhysioNet credentialed access. Point `DATA_DIR` in `config.R` at a local copy; the notebooks read the `.csv.gz` files directly with DuckDB.
+The three notebooks are independent, each reading from SQL, so they run in any order.
+
+MIMIC-IV is not included and requires PhysioNet credentialed access. Point `DATA_DIR` in `config.R` at a local copy; the notebooks read the `.csv.gz` files directly with DuckDB. `EXPLODE_THRESHOLD` sits in the same file, and is the `|2|` divergence cutoff the report checks against a penalized fit.
 
 **Stack**: R with synthpop, rpart, logistf, detectseparation, sandwich, survival, lmtest, duckdb, dplyr, ggplot2
 
