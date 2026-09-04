@@ -31,25 +31,24 @@ A CART-Based Analysis of MIMIC-IV Clinical Data}}
 A logistic fit's precision is set by the number of positive cases rather than by
 the sample size. This report asks whether the same threshold governs a
 generator. CART-based synthesis (\texttt{synthpop}) is run on MIMIC-IV
-($n = 70{,}954$ ICU stays) under two sweeps that hold the generator fixed and
-vary only the input: one raises the rare stratum's positive count $k$ at fixed
-sample size, the other raises the sample size $n$ at fixed $k$. Together they
-separate count from prevalence.
+($n = 70{,}954$ ICU stays) under two sweeps that hold the generator fixed: one
+raises the rare stratum's positive count $k$ at fixed sample size, the other
+raises the sample size $n$ at fixed $k$. Together they separate count from
+prevalence.
 
 The threshold does carry over, but the generator adds none of its own. Raising
-$k$ drives divergence to zero between counts of forty and eighty, and over a
-matched eightfold increase it cuts interquartile width by 42 to 66\% in all six
-series, while the same increase in $n$ moves neither. The real arm's divergence
+$k$ drives divergence to zero and sharply narrows the spread of the estimates,
+while a matched increase in $n$ moves neither. The real arm's divergence
 rate and a logistic fit to the same subsamples never involve the synthesizer, so
-the threshold belongs to the stratum and \texttt{synthpop} inherits it rather
-than imposing a second one. Synthesis adds a bias of its own that no count
+the threshold belongs to the stratum and \texttt{synthpop} inherits rather than
+imposes it. Synthesis adds a bias of its own that no count
 removes: in a companion simulation with a known truth, the synthetic median
 recovers 99\% of an interaction of 0.5 but only 41\% of one of 3. The finding
 transfers as a mechanism and not as a remedy.
 
-A 500-row subsample carries 6 to 7\% power against the interactions MIMIC-IV
-offers, and the smallest one it could detect is seven to twelve times the one
-present. Two recommendations follow: establish that a target effect is estimable
+A 500-row subsample cannot resolve the interactions MIMIC-IV offers: the
+smallest one it could detect is seven to twelve times the one present. Two
+recommendations follow: establish that a target effect is estimable
 in the source data before attributing any discrepancy to the generator, and
 calibrate variable-selection diagnostics against a permutation null, which here
 moves from 0.00 to 0.32 with class balance alone.
@@ -74,12 +73,16 @@ resembles the real one \cite{snoke2018}. A generator can score well on that and
 still lose the one coefficient a study was designed around, so what follows
 holds the generator fixed and measures a single interaction rather than overall
 similarity. It matters because of a specific misreading. A researcher handed a
-synthetic release of MIMIC-IV,
-finding the CHF by creatinine interaction absent from it, would reasonably
-conclude that the synthesizer had destroyed a clinical interaction. In the 500
+synthetic release of MIMIC-IV finds the CHF by creatinine interaction absent
+from it, and reasonably concludes that the synthesizer destroyed it. In the 500
 rows in front of them that effect was never detectable to begin with, and the
 same discrepancy would have appeared with no synthesizer involved at all.
-Code is available at
+Three questions follow, and the answers come from different places. Whether the
+count threshold reaches a generator is settled by the two sweeps on MIMIC-IV.
+Whether synthesis recovers the effect it was given cannot be settled there, so a
+simulation with a known truth answers it instead. Whether a split diagnostic can be read at
+all is a question about the audit rather than the generator, and closes the
+Results. Code is available at
 \href{https://github.com/ShengPeiWilliam/mimic-synthetic-fidelity}{GitHub Repository}.
 
 % -------------------------------------------------------
@@ -97,8 +100,8 @@ full-pool estimate are clustered.
 
 \subsection{Variables}
 
-Three predictors enter every fit: age, first-day maximum creatinine, and one
-comorbidity flag. Comorbidities are simplified ICD-9/ICD-10 prefix flags rather
+The outcome is in-hospital mortality. Three predictors enter every fit: age,
+first-day maximum creatinine, and one comorbidity flag. Comorbidities are simplified ICD-9/ICD-10 prefix flags rather
 than a validated index such as Elixhauser or Charlson, since the design needs a
 known positive count. The three least prevalent of the five screened were
 carried forward: COPD (11\%), CHF (28\%) and Diabetes (31\%). Even the rarest is
@@ -111,13 +114,16 @@ creatinine coefficient below is per mg/dL.
 
 \subsection{Experimental Design}
 
-Both sweeps draw stratified subsamples and synthesize each with
+Both sweeps draw subsamples stratified on the comorbidity flag, $k$ rows
+carrying it and $n - k$ without, and synthesize each with
 \texttt{synthpop::syn()} \cite{nowok2016}. One model is fitted to the real
 subsample and again to the synthetic table, giving paired estimates
 $\hat\beta_{\text{real}}$ and $\hat\beta_{\text{syn}}$ of the interaction at
 $M = 100$ Monte Carlo replicates per grid point:
 \[
-\texttt{hospital\_expire\_flag} \sim \texttt{age} + \texttt{creatinine} + \texttt{comorbidity} + \texttt{comorbidity}{:}\texttt{creatinine}
+\texttt{hospital\_expire\_flag} \sim \texttt{age} + \texttt{creatinine}
+  + \texttt{comorbidity}
+  + \underbrace{\texttt{comorbidity}{:}\texttt{creatinine}}_{\hat\beta_{\text{real}},\ \hat\beta_{\text{syn}}}
 \]
 
 The distance between the two estimates is the fidelity measure, and the same
@@ -163,25 +169,10 @@ its interaction asks a GLM the same question. Every configuration is re-run with
 the comorbidity shuffled, which holds the positive count fixed but destroys its
 link to the outcome, giving the null.
 
-\subsection{Two Failure Modes}
-\label{sec:failure}
-
-Fits at the smallest counts fail often enough that the rates are reported as a
-result, not used as a filter. They fail in two ways. The first is
-\textbf{inestimable}: the table holds no positives, so the interaction returns
-\texttt{NA}. The second is \textbf{divergent}: the term is returned but runs
-past $|2|$, forty times the full-pool estimate, marking a likelihood maximized
-at the boundary \cite{heinze2002}.
-
-Only the second appears in the real arm, which holds exactly $k$ positives by
-construction, while the synthetic table generates its own column and can come
-back empty. Rates are shares of all $M$ replicates, so converged, inestimable
-and divergent sum to one, and every quantile below uses converged fits only.
-
 \subsection{The Full-Pool Reference}
 
-MIMIC-IV carries no known ground truth, so the interaction fit on the whole pool
-stands in as the reference, $\hat\beta_{\text{full}}$, and every subsample
+MIMIC-IV carries no known ground truth, so the same model fitted on the whole
+pool stands in as the reference, $\hat\beta_{\text{full}}$, and every subsample
 estimate is read against it. All three are real, differ in sign, and run roughly
 three to four times smaller than the creatinine slope they modify
 (Table~\ref{tab:fullpool}).
@@ -201,6 +192,21 @@ COPD     & 0.188 & $+0.0668$ & 0.0232 & $4.0\times10^{-3}$ \\
 modifies. Standard errors clustered on patient.}
 \label{tab:fullpool}
 \end{table}
+
+\subsection{Two Failure Modes}
+\label{sec:failure}
+
+Fits at the smallest counts fail often enough that the rates are reported as a
+result, not used as a filter. They fail in two ways. The first is
+\textbf{inestimable}: the table holds no positives, so the interaction returns
+\texttt{NA}. The second is \textbf{divergent}: the term is returned but runs
+past $|2|$, forty times the full-pool estimate, marking a likelihood maximized
+at the boundary \cite{heinze2002}.
+
+Only the second appears in the real arm, which holds exactly $k$ positives by
+construction, while the synthetic table generates its own column and can come
+back empty. Rates are shares of all $M$ replicates, so converged, inestimable
+and divergent sum to one, and every quantile below uses converged fits only.
 
 % -------------------------------------------------------
 \subsection{What This Design Can and Cannot Resolve}
@@ -282,7 +288,7 @@ mismeasures how bad the smallest counts are, not where failure ends.
 \subsection{The Count Narrows the Spread; the Sample Size Does Not}
 
 \paragraph{Count sweep: the count narrows it, and it is still four times too wide.}
-Every series loses 55 to 69\% of its width from $k = 20$ to $k = 250$. The
+Every series narrows by 55 to 69\% from $k = 20$ to $k = 250$. The
 narrowest cell still runs 0.194 wide against a reference of 0.0497
 (Table~\ref{tab:fullpool}), nearly four times the quantity being estimated. What
 low counts cost is precision and not location: the middle half of the estimates
@@ -366,7 +372,9 @@ Synthesis keeps 99\% of a true value of 0.5, 59\% of 1.5 and 41\% of 3
 (Figure~\ref{fig:simmedian}). The row at 0.5 is not the exception it looks like:
 an estimator that pulls toward zero is accurate against any target near zero,
 and the error columns show what the medians hide, 34\% larger on the synthetic
-side where the medians agree to within 1\%.
+side where the medians agree to within 1\%. Nothing in the table reaches down to
+the 0.050 to 0.071 MIMIC-IV offers, an order of magnitude below the smallest
+value simulated.
 
 \begin{figure}[H]
     \centering
@@ -401,6 +409,11 @@ put (Figure~\ref{fig:tree}, right), and with the null out of the way the signal
 is legible without pooling: 104 discordant replicates to 32. The diagnostic is
 readable where its null is near zero, which here means low prevalence.
 
+The matched GLM reads the same way. It detects the comorbidity in 6.7 to 10.1\%
+of replicates against the 6 to 7\% theory allows a 500-row subsample, and does
+no better on real labels than on shuffled ones. Both methods are blind at these
+sizes; CART is the one that fails visibly, by declining to spend a split.
+
 \begin{figure}[H]
     \centering
     \begin{minipage}{0.48\textwidth}
@@ -422,13 +435,10 @@ readable where its null is near zero, which here means low prevalence.
 \section{Discussion}
 
 \paragraph{The design, not the generator.}
-The sweeps returned the floor of Section~\ref{sec:scope}. Theory gives a 500-row
-subsample 6 to 7\% power against these interactions and the GLM arm returned
-6.7 to 10.1\%, both within a few points of the 5\% a powerless test would
-produce, which locates the failure in the design and not in the pipeline.
-Neither sweep implicates CART on its own: the GLM does no better on real labels
-than on shuffled ones, and CART is only the method that fails visibly, by
-declining to spend a split.
+The sweeps returned the floor of Section~\ref{sec:scope}: theory and the GLM arm
+both land within a few points of the 5\% a powerless test would produce, which
+puts the failure in the design and not in the pipeline. Neither sweep implicates
+CART on its own.
 
 \paragraph{A threshold, but not a cutoff.}
 The count at which divergence stops sits in $(40, 80]$ for each series, but at
@@ -439,9 +449,10 @@ universal cutoff.
 
 \paragraph{Three readings that disagree.}
 Failure, spread and location do not move together. The synthetic arm spreads
-wider than its own count predicts and sits below the truth, yet at a large true
-effect it fails less often than the real one. Read on its own that last reading
-looks like stability, and stability is what the smoothing buys.
+wider than its own count predicts on MIMIC-IV and sits below the truth in the
+simulation, yet at a large true effect it fails less often than the real one.
+Read on its own that last reading looks like stability, and stability is what
+the smoothing buys.
 
 \paragraph{A privacy-fidelity tension.}
 CART's reluctance to isolate a subgroup with few supporting cases is not simply a
@@ -458,8 +469,8 @@ parameters but not on visit order. Both are permissive, which makes
 non-selection the more reliable outcome. Monte Carlo error at $M = 100$ reaches
 13\% on interquartile widths, so a cell that misses significance is not evidence
 that nothing is there. The single-copy GLM carries no correction for the
-variance synthesis contributes \cite{raab2016}, so the two arms are compared as
-procedures in use, not as matched estimators. One continuous variable and one
+variance that synthesis contributes \cite{raab2016}, so the two arms are
+compared as procedures in use, not as matched estimators. One continuous variable and one
 outcome were examined, two of the five screened comorbidities were left
 unanalysed, and all results come from a single MIMIC-IV snapshot.
 
